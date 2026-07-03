@@ -1,25 +1,23 @@
-# Tạo .gitkeep cho các folder trong src/
-New-Item src\core\interfaces\.gitkeep
-New-Item src\vision\detection\.gitkeep
-New-Item src\vision\tracking\.gitkeep
-New-Item src\vision\recognition\.gitkeep
-New-Item src\vision\anomaly\.gitkeep
-New-Item src\vision\models\detection\.gitkeep
-New-Item src\vision\models\tracking\.gitkeep
-New-Item src\vision\models\recognition\.gitkeep
-New-Item src\vision\models\anomaly\.gitkeep
-New-Item src\services\.gitkeep
-New-Item src\api\.gitkeep
-New-Item src\ui\.gitkeep
-New-Item src\utils\.gitkeep
+New-Item -Path "src\core\interfaces\.gitkeep" -Force
+New-Item -Path "src\vision\detection\.gitkeep" -Force
+New-Item -Path "src\vision\tracking\.gitkeep" -Force
+New-Item -Path "src\vision\recognition\.gitkeep" -Force
+New-Item -Path "src\vision\anomaly\.gitkeep" -Force
+New-Item -Path "src\vision\models\detection\.gitkeep" -Force
+New-Item -Path "src\vision\models\tracking\.gitkeep" -Force
+New-Item -Path "src\vision\models\recognition\.gitkeep" -Force
+New-Item -Path "src\vision\models\anomaly\.gitkeep" -Force
+New-Item -Path "src\services\.gitkeep" -Force
+New-Item -Path "src\api\.gitkeep" -Force
+New-Item -Path "src\ui\.gitkeep" -Force
+New-Item -Path "src\utils\.gitkeep" -Force
 
-# Tạo .gitkeep cho các folder khác
-New-Item configs\.gitkeep
-New-Item data\.gitkeep
-New-Item weights\.gitkeep
-New-Item outputs\.gitkeep
-New-Item notebooks\.gitkeep
-New-Item experiments\.gitkeep
-New-Item docs\.gitkeep
-New-Item scripts\.gitkeep
-New-Item tests\.gitkeep
+New-Item -Path "configs\.gitkeep" -Force
+New-Item -Path "data\.gitkeep" -Force
+New-Item -Path "weights\.gitkeep" -Force
+New-Item -Path "outputs\.gitkeep" -Force
+New-Item -Path "notebooks\.gitkeep" -Force
+New-Item -Path "experiments\.gitkeep" -Force
+New-Item -Path "docs\.gitkeep" -Force
+New-Item -Path "scripts\.gitkeep" -Force
+New-Item -Path "tests\.gitkeep" -Force
