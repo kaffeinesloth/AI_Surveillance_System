@@ -1,0 +1,25 @@
+# Tạo .gitkeep cho các folder trong src/
+New-Item src\core\interfaces\.gitkeep
+New-Item src\vision\detection\.gitkeep
+New-Item src\vision\tracking\.gitkeep
+New-Item src\vision\recognition\.gitkeep
+New-Item src\vision\anomaly\.gitkeep
+New-Item src\vision\models\detection\.gitkeep
+New-Item src\vision\models\tracking\.gitkeep
+New-Item src\vision\models\recognition\.gitkeep
+New-Item src\vision\models\anomaly\.gitkeep
+New-Item src\services\.gitkeep
+New-Item src\api\.gitkeep
+New-Item src\ui\.gitkeep
+New-Item src\utils\.gitkeep
+
+# Tạo .gitkeep cho các folder khác
+New-Item configs\.gitkeep
+New-Item data\.gitkeep
+New-Item weights\.gitkeep
+New-Item outputs\.gitkeep
+New-Item notebooks\.gitkeep
+New-Item experiments\.gitkeep
+New-Item docs\.gitkeep
+New-Item scripts\.gitkeep
+New-Item tests\.gitkeep

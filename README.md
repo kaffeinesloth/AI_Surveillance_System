@@ -44,7 +44,7 @@ security_ai_system/
 │   │
 │   ├── services/             # Tương tác phần cứng & bên thứ 3 (Camera, DB, Alert)
 │   ├── api/                  # Backend API endpoints (FastAPI/Flask)
-│   ├── ui/                   # Giao diện người dùng (Streamlit/PyQt)
+│   ├── ui/                   # Giao diện người dùng
 │   ── utils/                # Các hàm tiện ích chung
 │
 ├── main.py                   # Entry point chạy hệ thống dưới dạng Console/Service
