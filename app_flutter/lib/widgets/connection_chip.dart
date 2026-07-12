@@ -1,17 +1,66 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
-class ConnectionChip extends StatelessWidget {
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../core/api_config.dart';
+
+class ConnectionChip extends StatefulWidget {
   const ConnectionChip({super.key});
 
   @override
+  State<ConnectionChip> createState() => _ConnectionChipState();
+}
+
+class _ConnectionChipState extends State<ConnectionChip> {
+  Timer? _timer;
+  bool? _isOnline;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnection();
+    _timer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _checkConnection(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkConnection() async {
+    try {
+      final response = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}/health'))
+          .timeout(const Duration(seconds: 2));
+      if (!mounted) return;
+      setState(() => _isOnline = response.statusCode == 200);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isOnline = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isOnline = _isOnline == true;
+    final isChecking = _isOnline == null;
+    final label = isChecking ? 'Checking' : (isOnline ? 'Online' : 'Offline');
+    final color = isChecking
+        ? const Color(0xFF9CA3AF)
+        : (isOnline ? const Color(0xFF0F766E) : const Color(0xFFB91C1C));
+
     return Chip(
-      avatar: const Icon(Icons.circle, size: 12, color: Color(0xFF9CA3AF)),
-      label: const Text('Offline'),
+      avatar: Icon(Icons.circle, size: 12, color: color),
+      label: Text(label),
       visualDensity: VisualDensity.compact,
       side: const BorderSide(color: Color(0xFFE5E7EB)),
       backgroundColor: Colors.white,
-      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+      labelStyle: TextStyle(fontWeight: FontWeight.w700, color: color),
     );
   }
 }

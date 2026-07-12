@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/connection_chip.dart';
 import 'dashboard_screen.dart';
 import 'logs_screen.dart';
+import 'members_screen.dart';
 import 'register_screen.dart';
 import 'surveillance_screen.dart';
 
@@ -15,13 +16,20 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _selectedIndex = 0;
+  int _membersRefreshToken = 0;
 
-  late final List<_NavPage> _pages = [
+  List<_NavPage> get _pages => [
     _NavPage(
       title: 'Dashboard',
       icon: Icons.dashboard_outlined,
       selectedIcon: Icons.dashboard,
       child: DashboardScreen(),
+    ),
+    _NavPage(
+      title: 'Members',
+      icon: Icons.people_alt_outlined,
+      selectedIcon: Icons.people_alt,
+      child: MembersScreen(refreshToken: _membersRefreshToken),
     ),
     const _NavPage(
       title: 'Register',
@@ -44,7 +52,12 @@ class _MainShellState extends State<MainShell> {
   ];
 
   void _selectPage(int index) {
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      if (_pages[index].title == 'Members') {
+        _membersRefreshToken++;
+      }
+    });
   }
 
   @override
