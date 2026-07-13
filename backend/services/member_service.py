@@ -1,4 +1,5 @@
 import re
+import shutil
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,7 +14,7 @@ from backend.ai.embedding_manager import (
 from backend.ai.face_cropper import CroppedFaceImage, crop_face_image
 from backend.ai.face_detector import FaceDetectionError, FaceDetector
 from backend.ai.image_validator import ImageValidationError, validate_uploaded_image
-from backend.app.config import BASE_DIR, EMBEDDINGS_DIR, KNOWN_FACES_DIR
+from backend.app.config import BASE_DIR, DATA_DIR, EMBEDDINGS_DIR, KNOWN_FACES_DIR
 
 
 @dataclass(frozen=True)
@@ -169,6 +170,7 @@ class MemberService:
         }
 
     def list_members(self) -> list[dict]:
+        self.cleanup_orphan_member_data()
         rows = self.connection.execute(
             """
             SELECT p.id, p.name, p.created_at, COUNT(f.id) AS image_count
@@ -207,17 +209,18 @@ class MemberService:
         member["images"] = [dict(image) for image in images]
         return member
 
-    def delete_member(self, member_id: int) -> bool:
+    def delete_member(self, member_id: int) -> dict | None:
         member = self.get_member(member_id)
         if member is None:
-            return False
+            return None
 
-        file_paths = []
+        file_paths: list[str] = []
         for image in member["images"]:
             file_paths.append(image["image_path"])
             if image["embedding_path"]:
                 file_paths.append(image["embedding_path"])
 
+        member_dirs = self._member_data_dirs(member_id, member["name"])
         self.connection.execute(
             "DELETE FROM face_embeddings WHERE person_id = ?",
             (member_id,),
@@ -225,24 +228,102 @@ class MemberService:
         self.connection.execute("DELETE FROM people WHERE id = ?", (member_id,))
         self.connection.commit()
 
+        deleted_files = 0
         for file_path in file_paths:
-            self._delete_local_file(file_path)
-        return True
+            if self._delete_local_file(file_path):
+                deleted_files += 1
 
-    @staticmethod
-    def _delete_local_file(relative_path: str) -> None:
+        deleted_dirs = 0
+        for directory in member_dirs:
+            if self._delete_local_directory(directory):
+                deleted_dirs += 1
+
+        return {
+            "message": "Member deleted",
+            "deleted_member_id": member_id,
+            "deleted_files": deleted_files,
+            "deleted_directories": deleted_dirs,
+        }
+
+    def cleanup_orphan_member_data(self) -> dict:
+        active_dir_names = set(self._active_member_dir_names())
+        deleted_dirs = 0
+
+        for storage_dir in (KNOWN_FACES_DIR, EMBEDDINGS_DIR):
+            if not storage_dir.exists():
+                continue
+            for member_dir in storage_dir.iterdir():
+                if not member_dir.is_dir() or not self._looks_like_member_dir(member_dir):
+                    continue
+                if member_dir.name in active_dir_names:
+                    continue
+                if self._delete_local_directory(member_dir):
+                    deleted_dirs += 1
+
+        return {
+            "message": "Orphan member data cleaned",
+            "deleted_directories": deleted_dirs,
+        }
+
+    @classmethod
+    def _delete_local_file(cls, relative_path: str) -> bool:
         target = BASE_DIR / relative_path
         try:
-            resolved = target.resolve()
-            if not resolved.is_relative_to(BASE_DIR.resolve()):
-                return
+            resolved = cls._safe_resolve_backend_path(target)
+            if resolved is None:
+                return False
             if resolved.exists() and resolved.is_file():
                 resolved.unlink()
-                parent = resolved.parent
-                if parent.exists() and not any(parent.iterdir()):
-                    parent.rmdir()
+                cls._delete_empty_parent_dirs(resolved.parent)
+                return True
         except OSError:
-            return
+            return False
+        return False
+
+    @classmethod
+    def _delete_local_directory(cls, directory: Path) -> bool:
+        try:
+            resolved = cls._safe_resolve_backend_path(directory)
+            if resolved is None or not resolved.exists() or not resolved.is_dir():
+                return False
+            shutil.rmtree(resolved)
+            cls._delete_empty_parent_dirs(resolved.parent)
+            return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _safe_resolve_backend_path(path: Path) -> Path | None:
+        resolved = path.resolve()
+        if not resolved.is_relative_to(BASE_DIR.resolve()):
+            return None
+        return resolved
+
+    @classmethod
+    def _delete_empty_parent_dirs(cls, directory: Path) -> None:
+        data_root = DATA_DIR.resolve()
+        current = directory.resolve()
+        while current != data_root and current.is_relative_to(data_root):
+            if not current.exists() or any(current.iterdir()):
+                return
+            current.rmdir()
+            current = current.parent
+
+    @classmethod
+    def _member_data_dirs(cls, member_id: int, member_name: str) -> list[Path]:
+        member_dir_name = f"{member_id}_{cls._slugify(member_name)}"
+        return [
+            KNOWN_FACES_DIR / member_dir_name,
+            EMBEDDINGS_DIR / member_dir_name,
+        ]
+
+    def _active_member_dir_names(self) -> list[str]:
+        rows = self.connection.execute("SELECT id, name FROM people").fetchall()
+        return [f"{row['id']}_{self._slugify(row['name'])}" for row in rows]
+
+    @staticmethod
+    def _looks_like_member_dir(path: Path) -> bool:
+        return re.match(r"^\d+_.+", path.name) is not None
 
     @staticmethod
     def _slugify(value: str) -> str:

@@ -33,7 +33,7 @@ def get_member(member_id: int, connection=Depends(db_session)):
 
 @router.delete("/{member_id}")
 def delete_member(member_id: int, connection=Depends(db_session)):
-    deleted = MemberService(connection).delete_member(member_id)
-    if not deleted:
+    result = MemberService(connection).delete_member(member_id)
+    if result is None:
         raise HTTPException(status_code=404, detail="Member not found")
-    return {"message": "Member deleted"}
+    return result
