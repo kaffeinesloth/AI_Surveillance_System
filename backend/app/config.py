@@ -1,0 +1,20 @@
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATABASE_DIR = BASE_DIR / "database"
+DATABASE_PATH = DATABASE_DIR / "app.db"
+DATA_DIR = BASE_DIR / "data"
+KNOWN_FACES_DIR = DATA_DIR / "known_faces"
+EMBEDDINGS_DIR = DATA_DIR / "embeddings"
+SNAPSHOTS_DIR = DATA_DIR / "snapshots"
+MODELS_DIR = BASE_DIR / "models"
+INSIGHTFACE_ROOT = MODELS_DIR / "insightface"
+INSIGHTFACE_MODEL_NAME = "buffalo_l"
+
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MIN_FACE_IMAGE_WIDTH = 80
+MIN_FACE_IMAGE_HEIGHT = 80
+MIN_DETECTED_FACE_SIZE = 40
+FACE_CROP_PADDING_RATIO = 0.25
+FACE_CROP_SIZE = 160
+INSIGHTFACE_DET_SIZE = (640, 640)

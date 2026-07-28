@@ -1,1 +1,15 @@
+backend/database/*.db
+backend/data/known_faces/*
+backend/data/embeddings/*
+backend/data/snapshots/*
+backend/data/test_videos/*
+backend/models/
+!backend/data/known_faces/.gitkeep
+!backend/data/embeddings/.gitkeep
+!backend/data/snapshots/.gitkeep
+!backend/data/test_videos/.gitkeep
+*.pt
+*.onnx
+*.npy
+.env
 .DS_Store
