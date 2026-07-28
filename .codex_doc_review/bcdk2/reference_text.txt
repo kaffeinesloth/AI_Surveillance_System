@@ -1,0 +1,465 @@
+P000 [Normal] BỘ KHOA HỌC VÀ CÔNG NGHỆ
+P001 [Normal] HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG
+P002 [Normal] CƠ SỞ TẠI THÀNH PHỐ HỒ CHÍ MINH
+P003 [Normal] ------------------------------
+P007 [Normal] BÁO CÁO ĐỊNH KỲ
+P008 [Normal] THỰC TẬP TỐT NGHIỆP
+P009 [Normal] ĐẠI HỌC
+P011 [Normal] Đề tài: “ Xây dựng hệ thống nhận dạng khuôn mặt, giám sát an ninh, phân tích video thời gian thực”
+P015 [Normal] Người hướng dẫn	:     Nguyễn Minh Tuấn
+P016 [Normal] Sinh viên 1		:      Trần Tuấn Hải	MSSV: N22DCCN026
+P017 [Normal] Lớp  	 		:      E22CQCNTT01-N
+P018 [Normal] Sinh viên 2		:      Huỳnh Bá Anh Khoa	MSSV: N22DCCN141
+P019 [Normal] Lớp  	 		:      E22CQCNTT01-N
+P020 [Normal] Sinh viên 1		:      Bùi Mạnh Khôi	MSSV: N22DCCN043
+P021 [Normal] Lớp  	 		:      E22CQCNTT01-N
+P022 [Normal] Ngành		:      Công nghệ thông tin
+P025 [Normal] TP.HCM, tháng 07 /2026
+P068 [Normal] LỜI CẢM ƠN
+P069 [Normal] Lời đầu tiên, chúng em xin bày tỏ lòng biết ơn chân thành và sâu sắc đến thầy Nguyễn Minh Tuấn, người đã trực tiếp hướng dẫn, định hướng và tận tình hỗ trợ chúng em trong suốt quá trình thực hiện dự án thực tập tốt nghiệp. Những ý kiến đóng góp, sự hướng dẫn và kinh nghiệm thực tiễn của thầy đã giúp chúng em hoàn thành dự án cũng như bài báo cáo này.
+P070 [Normal] Chúng em xin chân thành cảm ơn quý thầy, cô của Học viện Công nghệ Bưu chính Viễn thông đã tận tình giảng dạy, truyền đạt những kiến thức chuyên môn và kỹ năng cần thiết trong suốt quá trình học tập. Đây là nền tảng quan trọng giúp chúng em có thể vận dụng vào quá trình thực hiện dự án thực tập tốt nghiệp.
+P071 [Normal] Bên cạnh đó, chúng em cũng xin gửi lời cảm ơn đến các anh chị, đồng nghiệp và các bạn đã luôn sẵn sàng chia sẻ kinh nghiệm, đóng góp ý kiến và hỗ trợ chúng em trong quá trình thực hiện dự án.
+P072 [Normal] Mặc dù đã nỗ lực hết sức để hoàn thành dự án và báo cáo, do kiến thức và kinh nghiệm thực tế còn hạn chế nên báo cáo khó tránh khỏi những thiếu sót. Chúng em rất mong nhận được những ý kiến đóng góp quý báu từ thầy Nguyễn Minh Tuấn để có thể tiếp tục hoàn thiện kiến thức và nâng cao kỹ năng trong thời gian tới.
+P073 [Normal] Cuối cùng, chúng em xin gửi lời cảm ơn chân thành đến gia đình, người thân và bạn bè đã luôn động viên, khích lệ và tạo mọi điều kiện thuận lợi để chúng em hoàn thành tốt kỳ thực tập cũng như bài báo cáo này.
+P075 [Normal] Thành phố Hồ Chí Minh, tháng 4 năm 2025
+P076 [Normal] Sinh viên thực hiện
+P077 [Normal] Trần Tuấn Hải
+P078 [Normal] Huỳnh Bá Anh Khoa
+P079 [Normal] Bùi Mạnh Khôi
+P081 [Normal] DANH MỤC CÁC BẢNG, SƠ ĐỒ, HÌNH
+P083 [Normal] KÍ HIỆU CÁC CỤM TỪ VIẾT TẮT
+P085 [Normal] KẾ HOẠCH THỰC HIỆN CÔNG VIỆC NHÓM
+P087 [Normal] Bảng phân công công việc nhóm
+P090 [Normal] bảng tiến độ thực hiện
+P093 [Heading 1] MỞ ĐẦU
+P095 [Normal] Trong những năm gần đây, sự phát triển nhanh chóng của trí tuệ nhân tạo, học sâu và thị giác máy tính đã mở ra nhiều hướng ứng dụng mới trong lĩnh vực giám sát an ninh. So với hệ thống camera truyền thống chủ yếu phục vụ việc ghi hình và tra cứu sau sự cố, hệ thống giám sát tích hợp trí tuệ nhân tạo có khả năng tự động phát hiện đối tượng, nhận dạng danh tính, theo dõi quá trình di chuyển và đưa ra cảnh báo khi xuất hiện dấu hiệu bất thường. Xuất phát từ nhu cầu thực tế đó, nhóm lựa chọn thực hiện đề tài: “Xây dựng hệ thống nhận dạng khuôn mặt, giám sát an ninh và phân tích video thời gian thực”.
+P096 [Normal] Mục tiêu của đề tài là xây dựng một hệ thống giám sát có khả năng đăng ký và quản lý thông tin khuôn mặt, nhận dạng người đã đăng ký, phát hiện người lạ, theo dõi đối tượng trong luồng video và lưu lại các sự kiện phục vụ công tác quản lý. Hệ thống được thiết kế theo mô hình gồm ứng dụng Flutter ở phía người dùng, Backend FastAPI đảm nhiệm xử lý nghiệp vụ và tích hợp trí tuệ nhân tạo, cơ sở dữ liệu SQLite dùng để lưu trữ thông tin, cùng các mô hình YOLOv8, ByteTrack và InsightFace phục vụ phát hiện, theo dõi và nhận dạng khuôn mặt.
+P097 [Normal] Trong giai đoạn đầu, nhóm đã tiến hành thu thập và tiền xử lý dữ liệu hình ảnh; nghiên cứu, thử nghiệm và đánh giá các mô hình AI thông qua quy trình Jupyter Notebook; đồng thời xây dựng cấu trúc cơ sở dữ liệu và giao diện tổng thể của ứng dụng. Pipeline thử nghiệm hiện đã thực hiện được các bước phát hiện người, phát hiện và nhận dạng khuôn mặt, theo dõi đối tượng và thử nghiệm một số quy tắc cảnh báo dựa trên dữ liệu video.
+P098 [Normal] Bên cạnh quá trình thử nghiệm mô hình, nhóm đã chuyển đổi một phần pipeline AI từ Jupyter Notebook thành các module Python có thể sử dụng trong Backend FastAPI. Chức năng đăng ký khuôn mặt đã được hoàn thiện theo luồng end-to-end: người dùng nhập thông tin và lựa chọn hình ảnh trên ứng dụng Flutter; Backend tiếp nhận, kiểm tra và xử lý ảnh; phát hiện khuôn mặt, trích xuất vector đặc trưng bằng InsightFace; sau đó lưu thông tin người dùng, ảnh khuôn mặt và embedding vào hệ thống. Ứng dụng hiện cũng hỗ trợ hiển thị danh sách thành viên đã đăng ký và xóa thông tin thành viên.
+P099 [Normal] Tuy nhiên, hệ thống hiện mới hoàn thành chức năng đăng ký và quản lý thành viên, cùng với các thử nghiệm AI độc lập. Những chức năng như nhận dạng thời gian thực từ camera, so khớp người quen và người lạ, tích hợp ByteTrack vào Backend, lưu nhật ký giám sát, tạo cảnh báo và kết nối đầy đủ với các màn hình Surveillance và Logs vẫn đang trong quá trình phát triển. Đây sẽ là những nội dung chính được nhóm tiếp tục thực hiện trong giai đoạn tiếp theo.
+P100 [Normal] Báo cáo định kỳ lần 1 trình bày tổng quan đề tài, cơ sở lý thuyết và công nghệ được sử dụng, kết quả nghiên cứu và triển khai trong giai đoạn đầu, mức độ hoàn thành của từng hạng mục, những hạn chế còn tồn tại và kế hoạch phát triển tiếp theo. Qua đó, báo cáo giúp đánh giá khách quan tiến độ hiện tại và làm cơ sở để nhóm tiếp tục hoàn thiện hệ thống trong các giai đoạn sau.
+P102 [Heading 1] CHƯƠNG 1: TỔNG QUAN ĐỀ TÀI
+P103 [Heading 2] 1.1 Vấn đề cấp thiết
+P104 [Normal (Web)] Camera giám sát hiện được sử dụng rộng rãi tại các cơ quan, doanh nghiệp, trường học, cửa hàng và khu vực công cộng. Tuy nhiên, phần lớn hệ thống camera truyền thống chủ yếu thực hiện chức năng ghi hình và lưu trữ dữ liệu. Việc theo dõi vẫn phụ thuộc nhiều vào con người, trong khi số lượng camera và lượng dữ liệu video phát sinh ngày càng lớn. Nhân viên giám sát khó có thể quan sát liên tục tất cả luồng video, dẫn đến nguy cơ bỏ sót người lạ, hành vi xâm nhập hoặc các sự kiện bất thường.
+P105 [Normal (Web)] Khi sự cố xảy ra, dữ liệu từ camera truyền thống thường chỉ được sử dụng để truy xuất và kiểm tra lại. Cách tiếp cận này mang tính phản ứng sau sự cố, chưa hỗ trợ tốt việc phát hiện sớm và cảnh báo kịp thời. Vì vậy, nhu cầu xây dựng một hệ thống có khả năng tự động phân tích hình ảnh và video đang trở nên cần thiết.
+P106 [Normal (Web)] Sự phát triển của trí tuệ nhân tạo, học sâu và thị giác máy tính đã tạo điều kiện để nâng cao khả năng của hệ thống giám sát. Các mô hình hiện nay có thể phát hiện người trong khung hình, xác định vị trí khuôn mặt, trích xuất đặc trưng nhận dạng, theo dõi đối tượng qua nhiều khung hình và hỗ trợ phân tích một số hành vi dựa trên quy tắc. Việc kết hợp các kỹ thuật này giúp hệ thống camera chuyển từ chức năng ghi hình thụ động sang giám sát chủ động.
+P107 [Normal (Web)] Đối với bài toán nhận dạng khuôn mặt, mỗi người được đăng ký bằng một tập hình ảnh khuôn mặt. Hệ thống phát hiện và xử lý khuôn mặt trong ảnh, sau đó sử dụng mô hình học sâu để chuyển đổi khuôn mặt thành một vector đặc trưng, còn gọi là embedding. Khi xuất hiện khuôn mặt mới, hệ thống so sánh embedding của khuôn mặt đó với dữ liệu đã đăng ký để xác định danh tính hoặc phân loại là người lạ.
+P108 [Normal (Web)] Bên cạnh nhận dạng khuôn mặt, hệ thống giám sát thực tế còn phải xử lý luồng video liên tục, duy trì thông tin của một người qua nhiều khung hình và hạn chế việc tạo cảnh báo trùng lặp. Do đó, bài toán cần kết hợp nhiều thành phần như phát hiện người, nhận dạng khuôn mặt, theo dõi đối tượng, quản lý dữ liệu và giao tiếp giữa Backend với ứng dụng người dùng.
+P109 [Normal (Web)] Từ những yêu cầu trên, nhóm lựa chọn thực hiện đề tài “Xây dựng hệ thống nhận dạng khuôn mặt, giám sát an ninh và phân tích video thời gian thực”. Đề tài hướng đến việc xây dựng một sản phẩm thử nghiệm có khả năng đăng ký khuôn mặt, quản lý thành viên, nhận dạng người quen và người lạ từ camera, lưu nhật ký sự kiện và hiển thị cảnh báo trên ứng dụng Flutter.
+P110 [Heading 2] 1.2 Nhiệm vụ và mục tiêu đề tài
+P111 [Heading 3] 1.2.1 Mục tiêu tổng quát
+P112 [Normal (Web)] Mục tiêu tổng quát của đề tài là nghiên cứu, thiết kế và xây dựng một hệ thống giám sát an ninh tích hợp trí tuệ nhân tạo. Hệ thống có khả năng tiếp nhận dữ liệu hình ảnh hoặc video, phát hiện và theo dõi người xuất hiện trong khung hình, nhận dạng khuôn mặt của thành viên đã đăng ký, phát hiện người lạ và cung cấp kết quả cho người quản lý thông qua giao diện ứng dụng.
+P113 [Normal (Web)] Hệ thống được xây dựng theo kiến trúc gồm ứng dụng Flutter, Backend FastAPI, cơ sở dữ liệu SQLite và các module AI. Kiến trúc này giúp phân chia rõ ràng giữa giao diện người dùng, xử lý nghiệp vụ, lưu trữ dữ liệu và xử lý trí tuệ nhân tạo.
+P114 [Heading 2] 1.2.2 Mục tiêu cụ thể
+P115 [Normal] Để đạt được mục tiêu tổng quát, nhóm xác định các mục tiêu cụ thể như sau:
+P116 [Normal] Nghiên cứu các kỹ thuật AI phục vụ giám sát:
+P117 [Normal] Tìm hiểu nguyên lý hoạt động và thử nghiệm các công nghệ gồm YOLOv8, ByteTrack và InsightFace. Trong đó, YOLOv8 được định hướng sử dụng để phát hiện người, ByteTrack dùng để theo dõi đối tượng qua nhiều khung hình, còn InsightFace buffalo_l được sử dụng để phát hiện khuôn mặt và trích xuất embedding phục vụ nhận dạng.
+P118 [Normal] Xây dựng quy trình thu thập và tiền xử lý dữ liệu:
+P119 [Normal] Thu thập, phân loại và tổ chức dữ liệu hình ảnh khuôn mặt. Kiểm tra định dạng, kích thước và chất lượng ảnh; phát hiện khuôn mặt, cắt vùng khuôn mặt và chuẩn hóa dữ liệu trước khi đưa vào mô hình trích xuất đặc trưng.
+P120 [Normal] Xây dựng chức năng đăng ký khuôn mặt:
+P121 [Normal] Cho phép người dùng nhập tên và lựa chọn nhiều ảnh khuôn mặt trên ứng dụng. Backend tiếp nhận ảnh, kiểm tra tính hợp lệ, yêu cầu mỗi ảnh có đúng một khuôn mặt, cắt và chuẩn hóa khuôn mặt, trích xuất embedding, sau đó lưu kết quả vào hệ thống.
+P122 [Normal] Xây dựng cơ sở dữ liệu:
+P123 [Normal] Thiết kế cơ sở dữ liệu để quản lý thông tin thành viên, ảnh khuôn mặt, embedding, camera, phiên giám sát, kết quả nhận dạng, nhật ký và cảnh báo. Trong giai đoạn đầu, nhóm ưu tiên triển khai các bảng phục vụ chức năng đăng ký và quản lý thành viên.
+P124 [Normal] Xây dựng Backend và API:
+P125 [Normal] Sử dụng Python và FastAPI để xây dựng các API giao tiếp với ứng dụng Flutter. Backend chịu trách nhiệm xử lý yêu cầu, gọi các module AI, truy xuất cơ sở dữ liệu và trả kết quả cho Frontend dưới dạng dữ liệu JSON.
+P129 [Normal] Xây dựng giao diện ứng dụng:
+P130 [Normal] Phát triển ứng dụng Flutter gồm các màn hình Dashboard, Members, Register, Surveillance và Logs. Giao diện cần hỗ trợ quản lý thành viên, đăng ký khuôn mặt, theo dõi trạng thái giám sát và xem lại nhật ký hoặc cảnh báo.
+P131 [Normal] Xử lý video và nhận dạng thời gian thực
+P132 [Normal] Xây dựng pipeline đọc dữ liệu từ webcam hoặc video, phát hiện và theo dõi người, nhận dạng khuôn mặt, phân loại người quen hoặc người lạ và chuyển kết quả xử lý đến ứng dụng.
+P133 [Normal] Xây dựng cơ chế cảnh báo và lưu nhật ký
+P134 [Normal] Khi phát hiện người lạ hoặc sự kiện thỏa mãn quy tắc an ninh, hệ thống tạo cảnh báo, lưu thời gian, kết quả nhận dạng và ảnh minh chứng. Người quản lý có thể xem lại thông tin trên ứng dụng.
+P135 [Normal] Kiểm thử và đánh giá hệ thống
+P136 [Normal] Đánh giá khả năng nhận dạng thông qua các chỉ số Accuracy, FAR, FRR, Precision, Recall và F1-score. Đối với xử lý video, nhóm xem xét thêm FPS, độ trễ và độ ổn định của quá trình theo dõi.
+P138 [Heading 2] 1.3 Đối tượng và phạm vi nghiên cứu
+P139 [Heading 3] 1.3.1 Đối tượng nghiên cứu
+P140 [Normal (Web)] Đối tượng nghiên cứu của đề tài bao gồm:
+P141 [Normal] Các phương pháp phát hiện người và khuôn mặt trong hình ảnh hoặc video.
+P142 [Normal] Phương pháp biểu diễn khuôn mặt bằng vector đặc trưng.
+P143 [Normal] Phương pháp so khớp embedding để nhận dạng người quen và người lạ.
+P144 [Normal] Thuật toán theo dõi đối tượng qua nhiều khung hình.
+P145 [Normal] Phương pháp phân tích hành vi dựa trên quy tắc.
+P146 [Normal] Quy trình thu thập, làm sạch và tổ chức dữ liệu khuôn mặt.
+P147 [Normal] Kiến trúc Backend xử lý AI và cung cấp API.
+P148 [Normal] Phương pháp thiết kế cơ sở dữ liệu cho hệ thống giám sát.
+P149 [Normal] Phương pháp kết nối ứng dụng Flutter với Backend FastAPI.
+P150 [Normal] Các chỉ số đánh giá độ chính xác và hiệu năng của hệ thống.
+P151 [Heading 3] 1.3.2 Phạm vi chức năng
+P152 [Normal (Web)] Sản phẩm hoàn chỉnh được định hướng bao gồm những chức năng chính sau:
+P153 [Normal] Đăng ký người dùng bằng một hoặc nhiều ảnh khuôn mặt.
+P154 [Normal] Hiển thị và quản lý danh sách thành viên đã đăng ký.
+P155 [Normal] Xóa thành viên cùng ảnh và embedding liên quan.
+P156 [Normal] Tiếp nhận luồng video từ webcam hoặc tệp video.
+P157 [Normal] Phát hiện người và khuôn mặt trong khung hình.
+P158 [Normal] Theo dõi người qua nhiều khung hình liên tiếp.
+P159 [Normal] Nhận dạng thành viên đã đăng ký.
+P160 [Normal] Phân loại khuôn mặt không khớp thành người lạ.
+P161 [Normal] Lưu nhật ký nhận dạng và ảnh minh chứng.
+P162 [Normal] Tạo cảnh báo khi phát hiện người lạ hoặc hành vi vi phạm quy tắc.
+P163 [Normal] Hiển thị trạng thái hệ thống, kết quả giám sát và cảnh báo trên ứng dụng Flutter.
+P164 [Normal (Web)] Đề tài tập trung xây dựng sản phẩm thử nghiệm phục vụ mục đích nghiên cứu và trình diễn. Hệ thống chưa hướng đến triển khai trên quy mô lớn hoặc thay thế các giải pháp an ninh chuyên dụng.
+P165 [Heading 3] 1.3.3 Phạm vi dữ liệu và môi trường
+P166 [Normal (Web)] Dữ liệu được sử dụng gồm dữ liệu khuôn mặt công khai phục vụ thử nghiệm, hình ảnh do nhóm thu thập và một số video ngắn dùng để kiểm tra pipeline. Dữ liệu được xử lý và lưu trữ cục bộ nhằm thuận tiện cho quá trình phát triển.
+P167 [Normal (Web)] Hệ thống ưu tiên hoạt động trong điều kiện ánh sáng tương đối ổn định, khuôn mặt có thể quan sát rõ và không bị che khuất nghiêm trọng. Hiệu quả nhận dạng có thể giảm khi khuôn mặt quá nhỏ, ảnh bị mờ, góc nghiêng lớn hoặc điều kiện ánh sáng không phù hợp.
+P168 [Normal (Web)] Phiên bản hiện tại sử dụng SQLite và lưu ảnh, embedding, snapshot trong các thư mục cục bộ. Camera chính được định hướng là webcam của máy tính. Những nội dung như triển khai nhiều camera IP, xử lý phân tán, lưu trữ đám mây và thông báo đẩy không phải là mục tiêu ưu tiên trong giai đoạn đầu.
+P169 [Heading 3] 1.3.4 Phạm vi của báo cáo định kỳ lần 1
+P170 [Normal (Web)] Tại thời điểm thực hiện báo cáo định kỳ lần 1, nhóm đã đạt được các kết quả chính sau:
+P171 [Normal] Hoàn thành bước thu thập và tiền xử lý dữ liệu ban đầu.
+P172 [Normal] Xây dựng và chạy thử pipeline AI trong Jupyter Notebook.
+P173 [Normal] Thử nghiệm nhận dạng khuôn mặt, YOLOv8, ByteTrack và một số quy tắc cảnh báo.
+P174 [Normal] Xây dựng giao diện tổng thể của ứng dụng Flutter.
+P175 [Normal] Xây dựng cơ sở dữ liệu cho chức năng đăng ký khuôn mặt.
+P176 [Normal] Xây dựng các API đăng ký, xem danh sách, xem chi tiết và xóa thành viên.
+P177 [Normal] Chuyển một phần pipeline AI thành các module Python trong Backend.
+P178 [Normal] Hoàn thiện chức năng đăng ký khuôn mặt và quản lý thành viên theo luồng end-to-end.
+P179 [Normal (Web)] Các chức năng nhận dạng từ webcam, giám sát thời gian thực, lưu nhật ký và tạo cảnh báo chưa được tích hợp hoàn chỉnh vào sản phẩm.
+P180 [Heading 2] 1.4 Phương pháp nghiên cứu và quy trình thực hiện
+P181 [Heading 3] 1.4.1 Phương pháp nghiên cứu
+P182 [Normal (Web)] Nhóm kết hợp các phương pháp nghiên cứu sau:
+P183 [Normal (Web)] Phương pháp nghiên cứu tài liệu: Nhóm tìm hiểu tài liệu về thị giác máy tính, phát hiện đối tượng, nhận dạng khuôn mặt, embedding, cosine similarity và theo dõi đa đối tượng. Tài liệu kỹ thuật của Python, FastAPI, Flutter, SQLite, OpenCV, YOLOv8, ByteTrack và InsightFace được sử dụng để lựa chọn công nghệ và xây dựng hệ thống.
+P184 [Normal (Web)] Phương pháp thực nghiệm: Các mô hình và thuật toán được thử nghiệm độc lập trong Jupyter Notebook. Nhóm sử dụng dữ liệu hình ảnh và video để đánh giá khả năng phát hiện, nhận dạng và theo dõi trước khi tích hợp vào Backend.
+P185 [Normal (Web)] Phương pháp phát triển phần mềm: Hệ thống được chia thành các module gồm Frontend, Backend, AI và cơ sở dữ liệu. Các thành phần được phát triển riêng biệt, sau đó kết nối thông qua API để hình thành luồng xử lý hoàn chỉnh.
+P186 [Normal (Web)] Phương pháp kiểm thử: Nhóm kiểm tra từng chức năng độc lập trước khi kiểm thử tích hợp. Đối với chức năng đăng ký, hệ thống được kiểm tra với ảnh hợp lệ, ảnh không đọc được, ảnh không có khuôn mặt, ảnh có nhiều khuôn mặt và ảnh có kích thước quá nhỏ.
+P187 [Normal (Web)] Phương pháp đánh giá định lượng: Kết quả thử nghiệm AI được đánh giá bằng các chỉ số Accuracy, Precision, Recall, F1-score, FAR và FRR. Pipeline video được định hướng đánh giá bằng FPS, độ trễ và các chỉ số theo dõi đối tượng.
+P188 [Heading 3] 1.4.2 Quy trình thực hiện
+P189 [Normal (Web)] Quy trình thực hiện đề tài được chia thành năm giai đoạn:
+P190 [Normal (Web)] Giai đoạn 1 – Khảo sát và xác định yêu cầu: Nhóm xác định mục tiêu, chức năng, công nghệ và kiến trúc tổng thể của hệ thống. Các chức năng được phân chia thành đăng ký khuôn mặt, quản lý thành viên, giám sát trực tiếp, nhận dạng, cảnh báo và nhật ký.
+P191 [Normal (Web)] Giai đoạn 2 – Chuẩn bị dữ liệu và thử nghiệm AI: Dữ liệu được thu thập, phân loại và tiền xử lý. Các mô hình YOLOv8, ByteTrack và InsightFace được nghiên cứu, thử nghiệm và đánh giá trong Jupyter Notebook. Kết quả của giai đoạn này được sử dụng để lựa chọn pipeline phù hợp.
+P192 [Normal (Web)] Giai đoạn 3 – Xây dựng cơ sở dữ liệu, Backend và giao diện: Nhóm thiết kế cơ sở dữ liệu SQLite, xây dựng Backend FastAPI và phát triển giao diện Flutter. Trước tiên, nhóm tập trung vào chức năng đăng ký khuôn mặt để kiểm tra khả năng kết nối giữa toàn bộ các thành phần.
+P193 [Normal (Web)] Giai đoạn 4 – Tích hợp hệ thống: Pipeline AI từ Notebook được chuyển thành các module Python có thể tái sử dụng trong Backend. Frontend gửi dữ liệu qua API, Backend xử lý ảnh bằng các module AI, lưu kết quả và phản hồi để giao diện cập nhật. Sau khi hoàn thiện chức năng đăng ký, nhóm tiếp tục tích hợp pipeline giám sát video thời gian thực.
+P194 [Normal (Web)] Giai đoạn 5 – Kiểm thử, đánh giá và hoàn thiện: Hệ thống được kiểm thử bằng dữ liệu thực tế. Nhóm đo lường độ chính xác, tốc độ xử lý và độ trễ; sửa lỗi và điều chỉnh ngưỡng nhận dạng. Cuối cùng, nhóm hoàn thiện tài liệu, báo cáo, sản phẩm trình diễn và định hướng phát triển tiếp theo.
+P195 [Heading 1] CHƯƠNG 2: CƠ SỞ LÝ THUYẾT VÀ CÔNG NGHỆ NỀN TẢNG
+P196 [Heading 2] 2.1 Tổng quan về trí tuệ nhân tạo, học máy và học sâu
+P197 [Normal] Trí tuệ nhân tạo (Artificial Intelligence – AI) là lĩnh vực nghiên cứu và phát triển các hệ thống có khả năng thực hiện những nhiệm vụ thường yêu cầu trí thông minh của con người, chẳng hạn như nhận biết hình ảnh, xử lý ngôn ngữ, dự đoán và ra quyết định. Trong đề tài này, AI được ứng dụng để tự động phát hiện người, nhận dạng khuôn mặt, theo dõi đối tượng và phân tích sự kiện từ dữ liệu hình ảnh hoặc video.
+P198 [Normal] Học máy (Machine Learning – ML) là một nhánh của AI, trong đó hệ thống học các quy luật từ dữ liệu thay vì chỉ hoạt động dựa trên các điều kiện được lập trình thủ công. Một mô hình học máy được huấn luyện bằng dữ liệu mẫu, sau đó sử dụng các đặc trưng đã học để đưa ra dự đoán đối với dữ liệu mới.
+P199 [Normal] Học sâu (Deep Learning – DL) là một nhánh của học máy sử dụng mạng nơ-ron có nhiều tầng. Các mô hình học sâu có khả năng tự động học đặc trưng từ dữ liệu thô. Trong lĩnh vực thị giác máy tính, các tầng đầu của mạng thường học những đặc trưng cơ bản như cạnh, góc và màu sắc, trong khi các tầng sâu hơn có thể học được cấu trúc phức tạp như khuôn mặt hoặc hình dáng con người.
+P200 [Normal] Mạng nơ-ron tích chập (Convolutional Neural Network – CNN) là kiến trúc được sử dụng phổ biến trong xử lý ảnh. Phép tích chập cho phép mô hình khai thác thông tin không gian và nhận biết đặc trưng cục bộ trong ảnh. CNN là nền tảng của nhiều mô hình phát hiện đối tượng và nhận dạng khuôn mặt hiện đại.
+P201 [Normal] Trong hệ thống của đề tài, các kỹ thuật học sâu được sử dụng tại ba nhóm chức năng chính:
+P202 [Normal] Phát hiện người và khuôn mặt trong hình ảnh.
+P203 [Normal] Trích xuất vector đặc trưng để nhận dạng khuôn mặt.
+P204 [Normal] Theo dõi một người qua nhiều khung hình video liên tiếp.
+P205 [Normal] Các kết quả từ mô hình AI được kết hợp với cơ sở dữ liệu và các quy tắc nghiệp vụ để tạo thành một hệ thống giám sát hoàn chỉnh.
+P206 [Heading 2] 2.2 Xử lý ảnh, phát hiện người và khuôn mặt
+P207 [Heading 3] 2.2.1 Tiền xử lý và kiểm tra chất lượng ảnh
+P208 [Normal] Tiền xử lý là bước chuẩn bị dữ liệu trước khi ảnh được đưa vào mô hình AI. Chất lượng dữ liệu đầu vào ảnh hưởng trực tiếp đến khả năng phát hiện và nhận dạng khuôn mặt. Ảnh bị mờ, quá nhỏ, sai định dạng hoặc chứa nhiều khuôn mặt có thể tạo ra embedding không ổn định và làm giảm độ chính xác của hệ thống.
+P209 [Normal] Quy trình tiền xử lý ảnh trong đề tài gồm các bước chính:
+P210 [Normal] Kiểm tra tên và định dạng tệp.
+P211 [Normal] Kiểm tra dữ liệu ảnh có đọc được hay không.
+P212 [Normal] Kiểm tra kích thước tối thiểu của ảnh.
+P213 [Normal] Phát hiện số lượng khuôn mặt.
+P214 [Normal] Loại bỏ ảnh không có khuôn mặt hoặc có nhiều khuôn mặt.
+P215 [Normal] Cắt vùng ảnh chứa khuôn mặt.
+P216 [Normal] Thay đổi kích thước và chuẩn hóa ảnh.
+P217 [Normal] Trích xuất vector đặc trưng.
+P218 [Normal] Hệ thống hiện hỗ trợ các định dạng ảnh thông dụng như JPG, JPEG, PNG và WebP. Ảnh có kích thước quá nhỏ hoặc không thể giải mã sẽ bị từ chối trước khi đưa vào mô hình.
+P219 [Normal] Trong quá trình thử nghiệm dữ liệu trên Jupyter Notebook, nhóm sử dụng phương sai của toán tử Laplacian để hỗ trợ xác định ảnh mờ. Với ảnh xám \(I\), mức độ sắc nét có thể được ước lượng bằng:
+P221 [Normal (Web)] Trong đó:
+P222 [Normal] là kết quả áp dụng toán tử Laplacian lên ảnh;
+P223 [Normal] Var là phép tính phương sai;
+P224 [Normal] là điểm độ sắc nét của ảnh.
+P225 [Normal (Web)] Nếu B nhỏ hơn một ngưỡng được thiết lập, ảnh có thể được xem là ảnh mờ. Ngưỡng này cần được điều chỉnh theo độ phân giải và điều kiện thu thập ảnh thực tế.
+P226 [Normal (Web)] Đối với ảnh đăng ký, yêu cầu mỗi ảnh chỉ có một khuôn mặt. Quy tắc này giúp bảo đảm embedding được lưu thuộc đúng người cần đăng ký. Nếu không phát hiện được khuôn mặt hoặc phát hiện nhiều khuôn mặt, Backend trả về lý do từ chối cụ thể để người dùng lựa chọn ảnh khác.
+P227 [Heading 3] 2.2.2 Phát hiện khuôn mặt bằng Haar Cascade và SCRFD
+P228 [Normal] Phát hiện khuôn mặt là quá trình xác định vị trí của một hoặc nhiều khuôn mặt trong ảnh. Kết quả thường được biểu diễn bằng hộp giới hạn:
+P232 [Normal] Trong đó x, y là tọa độ góc trên bên trái, còn w, h lần lượt là chiều rộng và chiều cao của khuôn mặt.
+P234 [Normal] Trong phiên bản Backend hiện tại, hệ thống sử dụng bộ phân loại Haar Cascade của OpenCV để kiểm tra nhanh số lượng khuôn mặt trong ảnh đăng ký. Haar Cascade sử dụng các đặc trưng Haar-like kết hợp với mô hình phân loại theo tầng. Các vùng ảnh không có khả năng chứa khuôn mặt được loại bỏ sớm, giúp giảm số phép tính cần thực hiện.
+P235 [Normal] Ưu điểm của Haar Cascade là đơn giản, tốc độ xử lý nhanh và có thể hoạt động tốt với khuôn mặt nhìn tương đối thẳng. Tuy nhiên, phương pháp này có thể bị ảnh hưởng bởi ánh sáng yếu, khuôn mặt nghiêng, khuôn mặt quá nhỏ hoặc bị che khuất. Vì vậy, Haar Cascade trong hệ thống hiện tại chủ yếu đóng vai trò kiểm tra nhanh trước khi sử dụng mô hình InsightFace.
+P237 [Normal] Mô hình InsightFace buffalo_l sử dụng một bộ phát hiện khuôn mặt dựa trên SCRFD. So với Haar Cascade, SCRFD có khả năng phát hiện khuôn mặt tốt hơn trong nhiều điều kiện về kích thước, góc nhìn và ánh sáng. Kết quả phát hiện ngoài bounding box còn có thể bao gồm các điểm mốc quan trọng trên khuôn mặt.
+P239 [Normal] Việc sử dụng hai bước kiểm tra giúp hệ thống từ chối sớm các ảnh không hợp lệ, đồng thời sử dụng mô hình học sâu để trích xuất đặc trưng nhận dạng đáng tin cậy hơn.
+P241 [Heading 3] 2.2.3 Căn chỉnh và cắt khuôn mặt
+P242 [Normal] Khuôn mặt trong ảnh có thể xuất hiện ở nhiều vị trí, kích thước và góc nghiêng khác nhau. Nếu đưa trực tiếp vùng ảnh chưa chuẩn hóa vào mô hình, embedding thu được có thể không ổn định. Vì vậy, khuôn mặt cần được cắt và căn chỉnh trước khi trích xuất đặc trưng.
+P244 [Normal] Quy trình cơ bản gồm: Ảnh gốc -> Phát hiện khuôn mặt -> Xác định bounding box -> Mở rộng vùng cắt -> Chuẩn hóa kích thước.
+P246 [Normal] Trong Backend hiện tại, bounding box được mở rộng thêm một khoảng đệm để tránh cắt mất các vùng quan trọng của khuôn mặt. Tọa độ sau khi mở rộng phải được giới hạn trong kích thước ảnh:
+P252 [Normal] Trong đó  là khoảng đệm theo chiều ngang và chiều dọc, còn W và H là kích thước ảnh gốc.
+P254 [Normal] Ảnh khuôn mặt sau khi cắt được chuyển sang hệ màu RGB và thay đổi về kích thước thống nhất. Backend hiện lưu ảnh khuôn mặt đã cắt ở kích thước 160 × 160 pixel. Trong quy trình thử nghiệm ArcFace trên Notebook, ảnh có thể được căn chỉnh theo năm điểm mốc và chuẩn hóa về kích thước 112 × 112 pixel.
+P255 [Normal] Năm điểm mốc thường được sử dụng gồm:
+P256 [Normal] Tâm mắt trái.
+P257 [Normal] Tâm mắt phải.
+P258 [Normal] Đỉnh mũi.
+P259 [Normal] Khóe miệng trái.
+P260 [Normal] Khóe miệng phải.
+P261 [Normal] Từ các điểm mốc này, hệ thống có thể sử dụng phép biến đổi affine để xoay, dịch chuyển và chuẩn hóa khuôn mặt về một tư thế gần với ảnh mẫu.
+P263 [Heading 3] 2.2.4 Phát hiện người bằng YOLOv8
+P264 [Normal] YOLO (You Only Look Once) là một họ mô hình phát hiện đối tượng theo thời gian thực. Thay vì xử lý ảnh qua nhiều bước độc lập, YOLO thực hiện dự đoán vị trí và lớp của đối tượng trong một lần suy luận.
+P265 [Normal] YOLOv8 có thể phát hiện nhiều loại đối tượng. Trong đề tài, hệ thống chỉ quan tâm đến lớp person. Mỗi kết quả phát hiện bao gồm:
+P266 [Normal] Tọa độ bounding box.
+P267 [Normal] Nhãn đối tượng.
+P268 [Normal] Độ tin cậy.
+P269 [Normal] Vị trí tương đối của đối tượng trong khung hình.
+P270 [Normal] Luồng xử lý thử nghiệm sử dụng YOLOv8 được xây dựng như sau: Khung hình -> YOLOv8 -> Danh sách người -> Cắt từng vùng người -> Phát hiện khuôn mặt
+P272 [Normal] Cách tiếp cận này giúp hệ thống phát hiện và theo dõi một người ngay cả khi khuôn mặt của họ tạm thời không quan sát được. Khi khuôn mặt xuất hiện rõ trong vùng ảnh của người, module nhận dạng mới được thực hiện.
+P273 [Normal] YOLOv8 hiện đã được nhóm thử nghiệm trong Jupyter Notebook cùng với ByteTrack. Pipeline này chưa được tích hợp hoàn chỉnh vào Backend giám sát thời gian thực.
+P275 [Heading 2] 2.3 Trích xuất và so khớp đặc trưng khuôn mặt
+P276 [Heading 3] 2.3.1 Biểu diễn khuôn mặt bằng embedding
+P277 [Normal] Trong hệ thống nhận dạng khuôn mặt, ảnh không được so sánh trực tiếp theo từng điểm ảnh. Thay vào đó, mô hình học sâu chuyển mỗi khuôn mặt thành một vector đặc trưng gọi là embedding:
+P279 [Normal] e = f(I)
+P281 [Normal] Trong đó, I là ảnh khuôn mặt, f là mô hình trích xuất đặc trưng và e là embedding thu được. Các ảnh của cùng một người thường tạo ra các embedding gần nhau, trong khi embedding của những người khác nhau sẽ có khoảng cách lớn hơn.
+P283 [Normal] Đề tài sử dụng InsightFace buffalo_l để phát hiện khuôn mặt và trích xuất embedding. Trong chức năng đăng ký, mỗi ảnh hợp lệ tạo ra một embedding riêng. Embedding được lưu dưới dạng tệp NumPy (.npy), còn đường dẫn đến ảnh và embedding được lưu trong cơ sở dữ liệu SQLite.
+P284 [Heading 3] 2.3.2 Nguyên lý ArcFace
+P285 [Normal] ArcFace là phương pháp được sử dụng để tăng khả năng phân biệt giữa các khuôn mặt. Phương pháp này bổ sung một biên góc vào hàm mất mát trong quá trình huấn luyện, giúp embedding của cùng một người nằm gần nhau và embedding của những người khác nhau cách xa nhau hơn.
+P287 [Normal] Trong đề tài, nhóm không huấn luyện ArcFace từ đầu mà sử dụng mô hình pretrained thuộc bộ InsightFace buffalo_l. Cách tiếp cận này giúp giảm thời gian huấn luyện và phù hợp với phạm vi của sản phẩm thử nghiệm.
+P289 [Heading 3] 2.3.3 So khớp bằng cosine similarity
+P290 [Normal] Sau khi trích xuất embedding của khuôn mặt cần nhận dạng, hệ thống so sánh vector này với các embedding đã đăng ký bằng cosine similarity.
+P292 [Normal] Giá trị similarity càng lớn thì hai khuôn mặt càng có khả năng thuộc cùng một người. Hệ thống chọn người có điểm similarity cao nhất và so sánh kết quả với một ngưỡng T:
+P293 [Normal] Nếu similarity ≥ T: khuôn mặt được xác định là người đã đăng ký.
+P294 [Normal] Nếu similarity < T: khuôn mặt được phân loại là Unknown.
+P296 [Normal] Ngưỡng T cần được lựa chọn dựa trên quá trình thực nghiệm. Ngưỡng quá thấp có thể làm tăng khả năng nhận nhầm người lạ, trong khi ngưỡng quá cao có thể khiến hệ thống từ chối người đã đăng ký.
+P298 [Heading 2] 2.4 Theo dõi đối tượng và phân tích hành vi
+P299 [Heading 3] 2.4.1 Theo dõi đa đối tượng bằng ByteTrack
+P300 [Normal] Phát hiện đối tượng chỉ xác định người xuất hiện trong từng khung hình riêng lẻ. Để theo dõi cùng một người qua nhiều khung hình, hệ thống cần sử dụng thuật toán theo dõi đa đối tượng.
+P302 [Normal] ByteTrack nhận kết quả phát hiện người từ YOLOv8 và gán một mã track_id cho mỗi đối tượng. Mã này được duy trì khi người đó tiếp tục xuất hiện trong các khung hình sau. ByteTrack sử dụng cả các detection có độ tin cậy cao và thấp để hạn chế mất dấu khi đối tượng bị che khuất hoặc chất lượng hình ảnh giảm.
+P304 [Normal] Khi một khuôn mặt trong track được nhận dạng thành công, danh tính có thể được gắn với track_id. Nhờ đó, hệ thống không cần chạy nhận dạng khuôn mặt ở mọi khung hình, giúp giảm số phép tính và cải thiện tốc độ xử lý.
+P306 [Normal] Trong giai đoạn hiện tại, YOLOv8 và ByteTrack đã được thử nghiệm trên Jupyter Notebook nhưng chưa được tích hợp hoàn chỉnh vào Backend thời gian thực.
+P307 [Heading 3] 2.4.2 Phân tích hành vi dựa trên quy tắc
+P308 [Normal] Hệ thống sử dụng phương pháp dựa trên quy tắc để phát hiện một số sự kiện an ninh. Quy tắc được xây dựng dựa trên vị trí, danh tính và thời gian xuất hiện của đối tượng.
+P309 [Normal] Một số quy tắc được định hướng triển khai gồm:
+P310 [Normal] Phát hiện người lạ.
+P311 [Normal] Phát hiện người đi vào vùng cấm.
+P312 [Normal] Phát hiện người xuất hiện quá lâu trong một khu vực.
+P313 [Normal] Phát hiện số lượng người vượt ngưỡng.
+P314 [Normal] Phát hiện camera mất kết nối.
+P315 [Normal] Vùng giám sát được biểu diễn dưới dạng một đa giác ROI. Nếu vị trí của người nằm trong ROI và thỏa mãn điều kiện của quy tắc, hệ thống sẽ tạo cảnh báo. Cơ chế chống trùng lặp cũng cần được áp dụng để tránh tạo nhiều cảnh báo liên tiếp cho cùng một sự kiện.
+P316 [Normal] Nhóm đã thử nghiệm Behavior Rule Engine bằng dữ liệu log từ pipeline YOLOv8 và ByteTrack. Thành phần này sẽ được tích hợp vào Backend trong giai đoạn tiếp theo.
+P318 [Heading 2] 2.5 Công nghệ phát triển hệ thống
+P319 [Heading 3] 2.5.1 Backend FastAPI
+P320 [Normal] FastAPI là framework Python được sử dụng để xây dựng Backend và cung cấp API cho ứng dụng Flutter. Backend chịu trách nhiệm tiếp nhận yêu cầu, xử lý ảnh, gọi các module AI, truy xuất cơ sở dữ liệu và trả kết quả dưới dạng JSON.
+P322 [Normal] Các API hiện đã được xây dựng gồm:
+P323 [Normal] GET /health: kiểm tra trạng thái Backend.
+P324 [Normal] POST /members/register: đăng ký thành viên bằng ảnh khuôn mặt.
+P325 [Normal] GET /members: lấy danh sách thành viên.
+P326 [Normal] GET /members/{id}: lấy thông tin chi tiết của một thành viên.
+P327 [Normal] DELETE /members/{id}: xóa thành viên và dữ liệu liên quan.
+P329 [Normal] Các API phục vụ giám sát trực tiếp, nhật ký và cảnh báo sẽ được bổ sung trong giai đoạn tiếp theo.
+P330 [Heading 3] 2.5.2 Giao diện Flutter
+P331 [Normal] Flutter được sử dụng để phát triển giao diện đa nền tảng của hệ thống. Ứng dụng gồm các màn hình chính: Dashboard, Members, Register, Surveillance và Logs.
+P332 [Normal] Màn hình Register và Members hiện đã được kết nối với Backend. Người dùng có thể lựa chọn nhiều ảnh, đăng ký khuôn mặt, xem kết quả ảnh được chấp nhận hoặc từ chối, xem danh sách thành viên và xóa thành viên. Các màn hình Surveillance và Logs mới hoàn thành phần giao diện và chưa được kết nối đầy đủ với pipeline thời gian thực.
+P333 [Heading 3] 2.5.3 Cơ sở dữ liệu SQLite
+P334 [Normal] SQLite được lựa chọn vì có cấu trúc đơn giản, không yêu cầu máy chủ riêng và phù hợp với sản phẩm thử nghiệm. Phiên bản hiện tại sử dụng hai bảng chính:
+P335 [Normal] people: lưu mã thành viên, họ tên và thời gian tạo.
+P336 [Normal] face_embeddings: lưu mã thành viên, đường dẫn ảnh, đường dẫn embedding và thời gian tạo.
+P337 [Normal] Ảnh khuôn mặt và embedding được lưu trong các thư mục cục bộ. Cơ sở dữ liệu chỉ lưu thông tin và đường dẫn đến tệp, giúp việc lưu trữ và truy xuất dữ liệu thuận tiện hơn.
+P338 [Heading 2] 2.6 Các chỉ số đánh giá hệ thống
+P339 [Heading 3] 2.6.1 Chỉ số đánh giá nhận dạng
+P340 [Normal] Accuracy là tỷ lệ dự đoán đúng trên tổng số mẫu:
+P341 [Normal] Accuracy = (TP + TN) / (TP + TN + FP + FN)
+P343 [Normal] Precision là tỷ lệ dự đoán đúng trong tổng số kết quả được dự đoán thuộc lớp cần quan tâm:
+P344 [Normal] Precision = TP / (TP + FP)
+P346 [Normal] Recall là tỷ lệ mẫu đúng được phát hiện trên tổng số mẫu thực tế:
+P347 [Normal] Recall = TP / (TP + FN)
+P349 [Normal] F1-score là trung bình điều hòa giữa Precision và Recall:
+P350 [Normal] F1 = 2 × (Precision × Recall) / (Precision + Recall)
+P352 [Normal] False Acceptance Rate (FAR) là tỷ lệ người lạ bị nhận nhầm thành người đã đăng ký.
+P354 [Normal] False Rejection Rate (FRR) là tỷ lệ người đã đăng ký bị từ chối hoặc bị phân loại thành người lạ. Hai chỉ số này được sử dụng để lựa chọn ngưỡng nhận dạng phù hợp.
+P355 [Heading 3] 2.6.2 Chỉ số đánh giá phát hiện và theo dõi
+P356 [Normal] Intersection over Union (IoU) đo mức độ chồng lấp giữa bounding box dự đoán và bounding box thực tế:
+P357 [Normal] IoU = Diện tích phần giao / Diện tích phần hợp
+P359 [Normal] Đối với theo dõi, hệ thống có thể sử dụng các chỉ số MOTA, IDF1 và ID Switch. Trong đó, ID Switch là số lần hệ thống gán sai mã định danh của một đối tượng khi người đó di chuyển hoặc bị che khuất.
+P360 [Heading 3] 2.6.3 Chỉ số hiệu năng
+P361 [Normal] FPS là số khung hình hệ thống xử lý được trong một giây:
+P362 [Normal] FPS = Số khung hình / Tổng thời gian xử lý
+P364 [Normal] Độ trễ là khoảng thời gian từ lúc camera thu nhận khung hình đến khi kết quả được hiển thị trên ứng dụng. Hiệu năng phụ thuộc vào cấu hình phần cứng, độ phân giải video, số lượng người và số mô hình được chạy trên mỗi khung hình.
+P366 [Normal] Để giảm tải, hệ thống có thể bỏ qua một số frame, chỉ nhận dạng khuôn mặt theo chu kỳ hoặc kế thừa danh tính theo track_id.
+P367 [Heading 2] 2.7. Kết luận chương
+P368 [Normal] Chương 2 đã trình bày các cơ sở lý thuyết và công nghệ chính được sử dụng trong đề tài, bao gồm embedding khuôn mặt, ArcFace, cosine similarity, YOLOv8, ByteTrack, phân tích hành vi dựa trên quy tắc, FastAPI, Flutter và SQLite.
+P369 [Normal] Các thành phần AI đảm nhiệm việc phân tích hình ảnh và video; Backend điều phối quá trình xử lý và quản lý dữ liệu; ứng dụng Flutter cung cấp giao diện tương tác cho người dùng. Những nội dung này là nền tảng để phân tích yêu cầu và thiết kế hệ thống trong các chương tiếp theo.
+P371 [Heading 1] CHƯƠNG 3: PHÂN TÍCH YÊU CẦU HỆ THỐNG
+P372 [Heading 2] 3.1 Yêu cầu chức năng
+P373 [Heading 3] 3.1.1 Tiếp nhận và xử lý luồng video thời gian thực
+P374 [Heading 3] 3.1.2 Đăng ký thông tin và lưu trữ thư viện khuôn mặt (Enrollment)
+P375 [Heading 3] 3.1.3 Nhận dạng danh tính và phát hiện người lạ
+P376 [Heading 3] 3.1.4 Thiết lập vùng cấm và cảnh báo hành vi bất thường
+P377 [Heading 3] 3.1.5 Đẩy thông báo cảnh báo tức thời đến thiết bị di động
+P378 [Heading 2] 3.2 Yêu cầu phi chức năng
+P379 [Heading 3] 3.2.1 Hiệu năng và tốc độ xử lý (Tối ưu FPS, Latency end-to-end)
+P380 [Heading 3] 3.2.2 Độ tin cậy và tỷ lệ cảnh báo sai (False Alarm Rate)
+P381 [Heading 3] 3.2.3 Bảo mật thông tin và quyền riêng tư dữ liệu hình ảnh
+P382 [Heading 2] 3.3 Kịch bản sử dụng hệ thống (Use Case Diagram & Đặc tả chi tiết)
+P383 [Heading 3] 3.3.1 Danh sách Actor
+P384 [List Paragraph] Operator/Admin — người vận hành hệ thống qua ứng dụng Android, thực hiện đăng ký danh tính, cấu hình camera/vùng cấm/luật, xem và xử lý cảnh báo.
+P385 [List Paragraph] Camera/CCTV — thiết bị nguồn cấp luồng video thời gian thực cho hệ thống.
+P386 [List Paragraph] Hệ thống AI (Detection/Recognition/Tracking Engine) — thành phần backend tự động chạy các model YOLOv8, RetinaFace, ArcFace, ByteTrack để xử lý video và sinh cảnh báo.
+P387 [List Paragraph] Firebase Cloud Messaging (FCM) — dịch vụ ngoài của Google dùng để đẩy thông báo tới ứng dụng Android.
+P388 [Heading 3] 3.3.2 Sơ đồ Use Case tổng quan
+P389 [Normal] 3.3.3 Đặc tả chi tiết từng Use Case
+P390 [Heading 4] UC-01 — Đăng ký danh tính (Enrollment)
+P392 [Heading 4] UC-02 — Quản lý camera
+P394 [Heading 4] UC-03 — Cấu hình vùng cấm (ROI Zone)
+P396 [Heading 4] UC-04 — Cấu hình luật hành vi (Behavior Rule)
+P398 [Heading 4] UC-05 — Thu nhận luồng video
+P400 [Heading 4] UC-06 — Phát hiện người & khuôn mặt
+P402 [Heading 4] UC-07 — Nhận diện danh tính (Face Matching)
+P404 [Heading 4] UC-08 — Theo dõi đối tượng (Object Tracking)
+P406 [Heading 4] UC-09 — Đánh giá luật hành vi & sinh cảnh báo
+P408 [Heading 4] UC-10 — Đẩy thông báo (Push Notification)
+P410 [Heading 4] UC-11 — Xem & xử lý danh sách cảnh báo
+P412 [Heading 4] UC-12 — Quản lý tài khoản & thiết bị
+P416 [Normal] CHƯƠNG 4: THIẾT KẾ HỆ THỐNG
+P417 [Normal] 4.1. Kiến trúc tổng quan hệ thống End-to-End
+P419 [Normal] 4.2. Thiết kế luồng xử lý AI nâng cao (Kiến trúc Cascade nối tiếp)
+P420 [Normal] 4.2.1. Khối phát hiện người toàn diện (YOLOv8)
+P422 [Normal] 4.2.2. Khối định vị khuôn mặt nhỏ/ở xa (RetinaFace)
+P424 [Normal] 4.2.3. Khối trích xuất đặc trưng và so khớp danh tính (ArcFace)
+P426 [Normal] 4.2.4. Khối liên kết dữ liệu theo dõi hành trình (ByteTrack)
+P428 [Normal] 4.3. Thiết kế công cụ xử lý quy tắc hành vi (Behavior Rule Engine)
+P430 [Normal] 4.4. Thiết kế Cơ sở dữ liệu (Database Schema)
+P431 [Normal] 4.4.1. Cấu trúc lưu trữ lịch sử cảnh báo và log sự kiện
+P433 [Normal] 4.4.2. Cấu trúc cơ sở dữ liệu khuôn mặt mẫu (Gallery embedding)
+P435 [Normal] CHƯƠNG 5: TRIỂN KHAI VÀ THỰC NGHIỆM
+P436 [Normal] 5.1. Môi trường và công nghệ triển khai
+P437 [Normal] 5.1.1. Hạ tầng Backend (Python, FastAPI, OpenCV, ONNX Runtime)
+P439 [Normal] 5.1.2. Hạ tầng Mobile & Đám mây (Flutter/Android Kotlin, Firebase FCM)
+P441 [Normal] 5.2. Thu thập và tiền xử lý dữ liệu hình ảnh/video
+P443 [Normal] 5.3. Triển khai và tích hợp luồng xử lý AI vào Backend API
+P445 [Normal] 5.4. Phát triển ứng dụng di động giám sát và nhận cảnh báo
+P447 [Normal] 5.5. Kết quả thực nghiệm và Đánh giá hiệu năng
+P448 [Normal] 5.5.1. Kết quả kiểm thử độ chính xác nhận diện khuôn mặt và tracking
+P450 [Normal] 5.5.2. Kết quả đo lường tốc độ (FPS) và độ trễ phản hồi hệ thống (Latency)
+P452 [Normal] CHƯƠNG 6: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
+P453 [Normal] 6.1. Kết quả đạt được
+P455 [Normal] 6.2. Hạn chế của hệ thống
+P457 [Normal] 6.3. Hướng phát triển tương lai
+P459 [Normal] Tài liỆu thAM khẢo
+TABLE 0 4x2
+Tên sinh viên | công việc nhóm
+/  / Trần Tuấn Hải | Phụ trách nghiên cứu và phát triển các thành phần AI của hệ thống. Thử nghiệm, đánh giá và tối ưu các mô hình YOLOv8, ByteTrack và InsightFace buffalo_l; xây dựng pipeline phát hiện người, nhận dạng khuôn mặt, theo dõi đối tượng và phân tích hành vi từ video. Xác định ngưỡng nhận dạng, đánh giá độ chính xác, FAR/FRR, FPS và độ trễ; chuyển giao thuật toán và kết quả thử nghiệm để tích hợp vào sản phẩm.
+/  /  / Huỳnh Bá Anh Khoa | Phụ trách phát triển ứng dụng và tích hợp toàn bộ hệ thống. Thiết kế giao diện Flutter gồm Dashboard, quản lý thành viên, đăng ký khuôn mặt, giám sát trực tiếp, cảnh báo và nhật ký. Chuyển đổi pipeline AI từ Jupyter Notebook thành các module Python trong Backend FastAPI; xây dựng API, tích hợp camera/video, kết nối Frontend–Backend và hoàn thiện luồng hoạt động end-to-end của sản phẩm. Phụ trách kiểm thử chức năng, xử lý lỗi và đảm bảo sự ổn định của ứng dụng.
+/  / Bùi Mạnh Khôi | Phụ trách dữ liệu và cơ sở dữ liệu của hệ thống. Thu thập, tổ chức, làm sạch và tiền xử lý dữ liệu hình ảnh/video phục vụ huấn luyện và đánh giá mô hình. Thiết kế cơ sở dữ liệu lưu trữ thành viên, ảnh khuôn mặt, vector đặc trưng, camera, phiên giám sát, kết quả nhận dạng, cảnh báo và nhật ký. Xây dựng cấu trúc lưu trữ tệp, bảo đảm tính toàn vẹn dữ liệu và hỗ trợ truy xuất dữ liệu cho Backend.
+TABLE 1 7x5
+TT | Nội dung | Người thực hiện | Thời gian thực hiện | Mức độ hoàn thành
+1 | Thu thập, tổ chức và tiền xử lý dữ liệu hình ảnh phục vụ nhận dạng khuôn mặt | Bùi Mạnh Khôi | 01/07–07/07 | 100%
+2 | Nghiên cứu, thử nghiệm và đánh giá pipeline AI trên Jupyter Notebook: phát hiện, nhận dạng, theo dõi và phân tích hành vi | Trần Tuấn Hải | 01/07–11/07 | 100%
+3 | Thiết kế cơ sở dữ liệu tổng thể và triển khai các bảng phục vụ đăng ký khuôn mặt, lưu trữ ảnh và embedding | Bùi Mạnh Khôi | 05/07–14/07 | 60%
+4 | Thiết kế và xây dựng giao diện Flutter gồm Dashboard, Members, Register, Surveillance, và Logs | Huỳnh Bá Anh Khoa | 05/07–14/07 | 70%
+5 | Chuyển pipeline đăng ký khuôn mặt thành module Python; xây dựng Backend FastAPI và API quản lý thành viên | Huỳnh Bá Anh Khoa | 09/07–14/07 | 100%
+6 | Tích hợp pipeline nhận dạng, theo dõi và cảnh báo thời gian thực giữa AI Backend và giao diện Flutter | Trần Tuấn Hải, Huỳnh Bá Anh Khoa | 12/07–14/07 | 30%
+TABLE 2 10x2
+Mã Use Case | UC-01
+Tên Use Case | Đăng ký danh tính (Enrollment)
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator đăng ký một người mới vào hệ thống bằng cách nhập thông tin cá nhân và tải lên ảnh khuôn mặt để hệ thống trích xuất vector đặc trưng (embedding) phục vụ nhận diện sau này.
+Tiền điều kiện | Operator đã đăng nhập vào hệ thống với quyền phù hợp. / Có ít nhất 1 ảnh khuôn mặt rõ nét của người cần đăng ký.
+Hậu điều kiện | Một bản ghi mới được tạo trong bảng persons. / Ảnh đăng ký được lưu vào person_images. / Vector embedding (512 chiều, ArcFace) được tính và lưu vào face_embeddings với is_primary = 1. / Gallery trong bộ nhớ RAM (NumPy) của backend được refresh để có hiệu lực ngay mà không cần khởi động lại hệ thống.
+Luồng sự kiện chính | 1. Operator chọn chức năng "Đăng ký người mới" trên ứng dụng. / 2. Operator nhập thông tin: họ tên, mã định danh (person_code), loại (staff/guest/whitelisted/blacklisted). / 3. Operator tải lên 1 hoặc nhiều ảnh khuôn mặt. / 4. Hệ thống backend (FastAPI) nhận ảnh, chạy model phát hiện khuôn mặt (RetinaFace) để kiểm tra ảnh có đúng 1 khuôn mặt rõ nét. / 5. Hệ thống trích xuất embedding bằng ArcFace và lưu vào face_embeddings. / 6. Hệ thống đánh dấu ảnh đầu tiên là is_primary = 1 cho model đang dùng. / 7. Hệ thống refresh cache gallery trong RAM. / 8. Hệ thống trả về thông báo đăng ký thành công cho Operator.
+Luồng thay thế | 3a. Operator tải lên nhiều ảnh cùng lúc (nhiều góc mặt) để tăng độ chính xác — mỗi ảnh sinh 1 embedding, chỉ 1 ảnh được đánh dấu is_primary. / 6a. Nếu người này đã có embedding primary cho model hiện tại, Operator có thể chọn ảnh mới làm primary — hệ thống cập nhật is_primary = 0 cho ảnh cũ trước khi đặt is_primary = 1 cho ảnh mới (đảm bảo qua partial unique index).
+Ngoại lệ | Ảnh không phát hiện được khuôn mặt: hệ thống từ chối, yêu cầu tải ảnh khác. / Ảnh có nhiều hơn 1 khuôn mặt: hệ thống cảnh báo và yêu cầu Operator cắt ảnh hoặc chọn khuôn mặt chính. / person_code bị trùng: hệ thống báo lỗi ràng buộc UNIQUE, yêu cầu nhập mã khác.
+Liên quan | Liên quan bảng: persons, person_images, face_embeddings, model_versions.
+TABLE 3 10x2
+Mã Use Case | UC-02
+Tên Use Case | Quản lý camera
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator thêm mới, chỉnh sửa hoặc vô hiệu hóa camera giám sát trong hệ thống, bao gồm thông tin vị trí và đường dẫn luồng video (stream URL).
+Tiền điều kiện | Operator đã đăng nhập với quyền admin/operator.
+Hậu điều kiện | Bản ghi camera được tạo/cập nhật trong bảng cameras. / Camera mới có thể được chọn khi cấu hình ROI (UC-03) hoặc bắt đầu phiên giám sát (UC-05).
+Luồng sự kiện chính | 1. Operator chọn chức năng "Quản lý camera". / 2. Operator nhập tên camera, vị trí lắp đặt, và đường dẫn stream (RTSP/webcam URL). / 3. Hệ thống kiểm tra kết nối thử tới stream_url. / 4. Hệ thống lưu camera vào bảng cameras với is_active = 1. / 5. Camera xuất hiện trong danh sách camera khả dụng trên ứng dụng.
+Luồng thay thế | 3a. Operator chỉnh sửa thông tin camera đã tồn tại — hệ thống cập nhật bản ghi tương ứng. / 3b. Operator vô hiệu hóa camera (is_active = 0) — camera không còn được chọn cho phiên giám sát mới, nhưng dữ liệu lịch sử vẫn được giữ nguyên.
+Ngoại lệ | Không kết nối được stream_url: hệ thống cảnh báo nhưng vẫn cho phép lưu camera ở trạng thái chưa xác minh, để Operator kiểm tra lại sau.
+Liên quan | Liên quan bảng: cameras.
+TABLE 4 10x2
+Mã Use Case | UC-03
+Tên Use Case | Cấu hình vùng cấm (ROI Zone)
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator vẽ và định nghĩa các vùng cấm/vùng cảnh báo (Region of Interest) trên khung hình của một camera cụ thể, dùng làm cơ sở cho luật hành vi (UC-04).
+Tiền điều kiện | Camera đã được đăng ký trong hệ thống (UC-02). / Operator xem được khung hình xem trước (preview) của camera.
+Hậu điều kiện | Vùng ROI mới được lưu vào bảng roi_zones dưới dạng tọa độ đa giác (polygon_json).
+Luồng sự kiện chính | 1. Operator chọn 1 camera và mở màn hình cấu hình ROI. / 2. Operator vẽ đa giác trên khung hình preview để khoanh vùng cấm/cảnh báo. / 3. Operator đặt tên vùng và chọn loại (restricted/warning/entry/exit/custom). / 4. Hệ thống lưu tọa độ đa giác dưới dạng JSON vào roi_zones. / 5. Vùng ROI trở nên khả dụng để gán cho luật hành vi (UC-04).
+Luồng thay thế | 2a. Operator chỉnh sửa lại đa giác của một vùng ROI đã có — hệ thống cập nhật polygon_json và updated_at.
+Ngoại lệ | Tên vùng bị trùng trên cùng 1 camera: hệ thống báo lỗi ràng buộc UNIQUE(camera_id, roi_name). / Đa giác không hợp lệ (dưới 3 điểm): hệ thống từ chối lưu.
+Liên quan | Liên quan bảng: roi_zones (phụ thuộc cameras).
+TABLE 5 10x2
+Mã Use Case | UC-04
+Tên Use Case | Cấu hình luật hành vi (Behavior Rule)
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator định nghĩa các luật cảnh báo (xâm nhập, lảng vảng, người lạ...) áp dụng cho một vùng ROI hoặc toàn khung hình, kèm ngưỡng kích hoạt.
+Tiền điều kiện | Vùng ROI đã được tạo (UC-03), trừ trường hợp luật áp dụng toàn khung hình (roi_id để trống).
+Hậu điều kiện | Luật hành vi mới được lưu vào bảng behavior_rules ở trạng thái is_enabled = 1.
+Luồng sự kiện chính | 1. Operator chọn chức năng "Thêm luật hành vi". / 2. Operator chọn loại luật: intrusion (xâm nhập), loitering (lảng vảng), unknown_person (người lạ), restricted_area, hoặc custom. / 3. Operator chọn vùng ROI áp dụng (hoặc để trống nếu áp dụng toàn khung hình). / 4. Operator nhập ngưỡng: threshold_sec (thời gian, ví dụ lảng vảng quá 30 giây) hoặc threshold_score (độ tin cậy). / 5. Hệ thống lưu luật vào behavior_rules. / 6. Luật có hiệu lực ngay cho các phiên giám sát đang chạy (UC-09 sẽ đọc luật này để đánh giá).
+Luồng thay thế | 2a. Operator tạm vô hiệu hóa 1 luật (is_enabled = 0) mà không xóa, để bật lại sau này.
+Ngoại lệ | Ngưỡng nhập không hợp lệ (âm hoặc bằng 0): hệ thống từ chối lưu.
+Liên quan | Liên quan bảng: behavior_rules (phụ thuộc roi_zones).
+TABLE 6 10x2
+Mã Use Case | UC-05
+Tên Use Case | Thu nhận luồng video
+Actor | Camera/CCTV, Hệ thống AI
+Mô tả tóm tắt | Hệ thống backend mở kết nối tới luồng video của một camera đang hoạt động và bắt đầu một phiên giám sát (video session) để xử lý thời gian thực.
+Tiền điều kiện | Camera đã tồn tại và is_active = 1 (UC-02). / Stream (RTSP/webcam) đang khả dụng.
+Hậu điều kiện | Một bản ghi mới được tạo trong video_sessions với status = 'running'. / Luồng video sẵn sàng để hệ thống AI xử lý từng khung hình (UC-06).
+Luồng sự kiện chính | 1. Operator (hoặc hệ thống tự động khi khởi động) yêu cầu bắt đầu giám sát cho 1 camera. / 2. Backend mở kết nối tới stream_url của camera. / 3. Backend tạo bản ghi video_sessions mới (status = running, started_at = giờ hiện tại). / 4. Backend đọc khung hình liên tục ở tốc độ 20-30 FPS và đưa vào hàng đợi xử lý cho hệ thống AI.
+Luồng thay thế | 1a. Operator dừng phiên giám sát thủ công — backend đóng kết nối stream, cập nhật status = 'stopped', ended_at = giờ hiện tại.
+Ngoại lệ | Không kết nối được stream: backend đánh dấu status = 'failed' và có thể sinh alert loại camera_offline (UC-09). / Mất kết nối giữa chừng: backend tự động thử kết nối lại theo cơ chế retry; nếu vượt quá số lần thử, đánh dấu session failed.
+Liên quan | Liên quan bảng: video_sessions (phụ thuộc cameras).
+TABLE 7 10x2
+Mã Use Case | UC-06
+Tên Use Case | Phát hiện người & khuôn mặt
+Actor | Hệ thống AI
+Mô tả tóm tắt | Với mỗi khung hình thu được, hệ thống AI chạy kiến trúc cascade: YOLOv8 phát hiện toàn bộ người trong khung hình, sau đó RetinaFace phát hiện khuôn mặt bên trong vùng ảnh (crop) của từng người.
+Tiền điều kiện | Phiên giám sát đang chạy (UC-05) và có khung hình mới để xử lý.
+Hậu điều kiện | Nếu khung hình này liên quan đến 1 alert (xem UC-09), các bounding box người/mặt được ghi vào bảng detections với parent_detection_id liên kết face → person. / Nếu không liên quan alert, kết quả chỉ tồn tại tạm trong bộ nhớ RAM, không ghi xuống DB (theo quy ước tối ưu I/O).
+Luồng sự kiện chính | 1. Hệ thống AI nhận 1 khung hình từ hàng đợi. / 2. YOLOv8 chạy suy luận (inference), trả về danh sách bounding box của người (object_type = 'person'). / 3. Với mỗi người phát hiện được, hệ thống cắt ảnh (crop) theo bounding box. / 4. RetinaFace chạy trên từng ảnh crop để phát hiện khuôn mặt (object_type = 'face'), gán parent_detection_id trỏ về detection người tương ứng. / 5. Kết quả (bounding box, confidence, track_id tạm thời) được chuyển tiếp cho bước nhận diện (UC-07) và theo dõi (UC-08).
+Luồng thay thế | 3a. Không phát hiện được khuôn mặt nào trong vùng người (góc khuất, quay lưng...): hệ thống vẫn giữ lại detection loại 'person' để phục vụ tracking, bỏ qua bước nhận diện cho khung hình này.
+Ngoại lệ | Model suy luận vượt quá thời gian cho phép (timeout) do quá tải: hệ thống bỏ qua khung hình hiện tại (frame-skip) để tránh dồn hàng đợi, không làm nghẽn toàn pipeline.
+Liên quan | Liên quan bảng: detections (chỉ ghi khi có alert), model_versions.
+TABLE 8 10x2
+Mã Use Case | UC-07
+Tên Use Case | Nhận diện danh tính (Face Matching)
+Actor | Hệ thống AI
+Mô tả tóm tắt | Với mỗi khuôn mặt phát hiện được, hệ thống so khớp vector embedding (ArcFace) với gallery các embedding đã đăng ký (đang được load sẵn trong RAM) để xác định danh tính hoặc kết luận là người lạ.
+Tiền điều kiện | Có ít nhất 1 khuôn mặt được phát hiện (UC-06). / Gallery embedding đã được load vào RAM lúc backend khởi động (hoặc refresh sau UC-01).
+Hậu điều kiện | Kết quả nhận diện (person_id nếu khớp, similarity, match_status) có thể được ghi vào recognition_results nếu khung hình này liên quan alert.
+Luồng sự kiện chính | 1. Hệ thống trích xuất embedding 512 chiều từ ảnh khuôn mặt vừa phát hiện. / 2. Hệ thống tính cosine similarity giữa embedding này với toàn bộ embedding trong gallery (NumPy, tính trong RAM — không dùng SQL). / 3. Hệ thống chọn ứng viên có similarity cao nhất. / 4. Nếu similarity vượt ngưỡng (threshold) đã cấu hình: match_status = 'matched', gán person_id tương ứng. / 5. Nếu không có ứng viên nào vượt ngưỡng: match_status = 'unknown', person_id = NULL.
+Luồng thay thế | 4a. Ảnh khuôn mặt chất lượng thấp (mờ, quá nhỏ, góc nghiêng lớn): match_status = 'low_quality', hệ thống không đưa ra kết luận khớp/không khớp.
+Ngoại lệ | Gallery rỗng (chưa ai đăng ký): mọi khuôn mặt đều được xử lý như match_status = 'unknown'.
+Liên quan | Liên quan bảng: recognition_results, face_embeddings, persons, model_versions.
+TABLE 9 10x2
+Mã Use Case | UC-08
+Tên Use Case | Theo dõi đối tượng (Object Tracking)
+Actor | Hệ thống AI
+Mô tả tóm tắt | Hệ thống dùng thuật toán ByteTrack để gán và duy trì một track_id ổn định cho mỗi người xuất hiện xuyên suốt nhiều khung hình liên tiếp trong cùng phiên giám sát, làm cơ sở đánh giá hành vi theo thời gian (ví dụ: lảng vảng).
+Tiền điều kiện | Có ít nhất 1 người được phát hiện trong khung hình hiện tại (UC-06).
+Hậu điều kiện | Trạng thái track (track_states) được upsert theo (session_id, track_id) — cập nhật last_seen_at, frames_seen, current_status. / Nếu track vừa được nhận diện thành công (UC-07), track_states.person_id được gán.
+Luồng sự kiện chính | 1. ByteTrack nhận danh sách bounding box người ở khung hình hiện tại. / 2. Thuật toán so khớp các box này với các track đang active (dựa trên vị trí, IOU, đặc trưng chuyển động). / 3. Với track đã tồn tại: cập nhật last_seen_at, tăng frames_seen (chỉ trong RAM, không ghi DB mỗi khung hình). / 4. Với người mới xuất hiện: gán track_id mới, tạo track_states (current_status = 'active'). / 5. Định kỳ hoặc khi track kết thúc: hệ thống upsert trạng thái cuối cùng vào bảng track_states.
+Luồng thay thế | 4a. Người rời khỏi khung hình quá lâu: track chuyển current_status = 'lost', sau đó 'ended' nếu không xuất hiện lại. / 4b. Sau khi nhận diện thành công (UC-07), track được gán person_id — các khung hình tiếp theo của cùng track thừa hưởng danh tính này mà không cần nhận diện lại mỗi khung hình.
+Ngoại lệ | ID switch (ByteTrack gán nhầm track_id do che khuất/giao cắt giữa nhiều người): được ghi nhận như một chỉ số đánh giá hiệu năng (ID switch rate) ở giai đoạn kiểm thử, không phải lỗi runtime.
+Liên quan | Liên quan bảng: track_states (phụ thuộc video_sessions, persons).
+TABLE 10 10x2
+Mã Use Case | UC-09
+Tên Use Case | Đánh giá luật hành vi & sinh cảnh báo
+Actor | Hệ thống AI
+Mô tả tóm tắt | Hệ thống đối chiếu kết quả phát hiện, nhận diện và theo dõi với các luật hành vi đang bật để quyết định có kích hoạt một cảnh báo (alert) hay không.
+Tiền điều kiện | Có kết quả detection/recognition/tracking cho khung hình hiện tại (UC-06, UC-07, UC-08). / Có ít nhất 1 luật hành vi đang is_enabled = 1 (UC-04).
+Hậu điều kiện | Nếu luật bị vi phạm: một bản ghi mới được tạo trong alerts (status = 'new'), kèm ảnh snapshot_path/crop_path, và các detections/recognition_results liên quan (vốn chỉ tồn tại tạm trong RAM) được ghi xuống DB làm bằng chứng. / UC-10 được kích hoạt để đẩy thông báo.
+Luồng sự kiện chính | 1. Hệ thống lấy danh sách luật hành vi đang bật, cùng vùng ROI liên quan (nếu có). / 2. Với luật loại unknown_person: kiểm tra xem có track nào có match_status = 'unknown' xuất hiện trong ROI (hoặc toàn khung hình) không. / 3. Với luật loại intrusion/restricted_area: kiểm tra xem bounding box của người có giao với polygon của ROI không. / 4. Với luật loại loitering: kiểm tra track_states.frames_seen / thời gian tồn tại trong ROI có vượt threshold_sec không. / 5. Nếu điều kiện luật bị vi phạm: hệ thống ghi detection/recognition liên quan xuống DB, chụp snapshot khung hình + crop khuôn mặt, tạo bản ghi alerts với alert_type, severity, title, message tương ứng. / 6. Hệ thống gọi UC-10 để đẩy thông báo tới thiết bị của Operator.
+Luồng thay thế | 5a. Cùng 1 track vi phạm luật nhiều khung hình liên tiếp: hệ thống áp dụng cơ chế chống trùng lặp (debounce) để không tạo nhiều alert liên tiếp cho cùng 1 sự kiện.
+Ngoại lệ | Không có luật nào đang bật: hệ thống bỏ qua bước đánh giá, không sinh alert. / Nhiều luật cùng bị vi phạm trong 1 khung hình: hệ thống có thể sinh nhiều alert riêng biệt, mỗi alert ứng với 1 rule_id.
+Liên quan | Liên quan bảng: alerts, detections, recognition_results, roi_zones, behavior_rules.
+TABLE 11 10x2
+Mã Use Case | UC-10
+Tên Use Case | Đẩy thông báo (Push Notification)
+Actor | Hệ thống AI (backend), Firebase Cloud Messaging
+Mô tả tóm tắt | Sau khi một cảnh báo được sinh ra, backend gửi thông báo đẩy tới toàn bộ thiết bị đang hoạt động của các Operator thông qua Firebase Cloud Messaging.
+Tiền điều kiện | Một alert mới vừa được tạo (UC-09). / Có ít nhất 1 thiết bị (device_tokens) đang is_active = 1.
+Hậu điều kiện | Thông báo được gửi tới ứng dụng Android của Operator, hiển thị dưới dạng push notification.
+Luồng sự kiện chính | 1. Backend lấy danh sách fcm_token đang active từ bảng device_tokens. / 2. Backend chuyển đổi thời gian triggered_at từ UTC sang giờ Việt Nam (+07:00) tại tầng response, trước khi đóng gói payload. / 3. Backend gửi payload (alert_type, title, message, ảnh snapshot) tới FCM. / 4. FCM chuyển tiếp thông báo tới thiết bị Android tương ứng. / 5. Ứng dụng Android hiển thị push notification cho Operator.
+Luồng thay thế | 3a. Operator có nhiều thiết bị đăng nhập cùng tài khoản: thông báo được gửi đồng thời tới tất cả fcm_token của user đó.
+Ngoại lệ | fcm_token không còn hợp lệ (app đã gỡ cài đặt/token hết hạn): FCM trả lỗi, backend đánh dấu device_tokens.is_active = 0 để không gửi lại lần sau. / Không có thiết bị nào active: alert vẫn được lưu trong hệ thống, Operator có thể xem lại khi mở ứng dụng (UC-11) dù không nhận được push ngay lúc đó.
+Liên quan | Liên quan bảng: device_tokens, users, alerts.
+TABLE 12 10x2
+Mã Use Case | UC-11
+Tên Use Case | Xem & xử lý danh sách cảnh báo
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator mở ứng dụng để xem danh sách cảnh báo (mới nhất trước), xem chi tiết bằng chứng (ảnh, vị trí, thời gian), và cập nhật trạng thái xử lý.
+Tiền điều kiện | Operator đã đăng nhập vào ứng dụng.
+Hậu điều kiện | Trạng thái alert được cập nhật (acknowledged/resolved/ignored) và lưu vào bảng alerts.
+Luồng sự kiện chính | 1. Operator mở màn hình danh sách cảnh báo trên ứng dụng. / 2. Ứng dụng gọi API lấy danh sách alerts (sắp xếp theo triggered_at giảm dần), lọc theo camera/mức độ nghiêm trọng nếu cần. / 3. Operator chọn 1 cảnh báo để xem chi tiết: ảnh snapshot, ảnh crop, loại cảnh báo, vùng ROI liên quan, thời gian. / 4. Operator xác nhận đã xem/xử lý cảnh báo (chuyển status sang 'acknowledged' hoặc 'resolved'). / 5. Hệ thống cập nhật bản ghi alerts tương ứng.
+Luồng thay thế | 4a. Operator đánh giá cảnh báo là báo động giả (false positive) và chọn 'ignored'.
+Ngoại lệ | Mất kết nối mạng khi tải danh sách: ứng dụng hiển thị dữ liệu cache gần nhất kèm thông báo lỗi kết nối.
+Liên quan | Liên quan bảng: alerts (một bảng duy nhất, không cần JOIN nhờ snapshot_path/crop_path lưu trực tiếp).
+TABLE 13 10x2
+Mã Use Case | UC-12
+Tên Use Case | Quản lý tài khoản & thiết bị
+Actor | Operator/Admin
+Mô tả tóm tắt | Operator đăng nhập vào ứng dụng, hệ thống đăng ký thiết bị (fcm_token) của Operator để phục vụ nhận thông báo đẩy (UC-10).
+Tiền điều kiện | Operator có tài khoản hợp lệ trong bảng users.
+Hậu điều kiện | Phiên đăng nhập được thiết lập. / fcm_token của thiết bị hiện tại được lưu/cập nhật vào device_tokens với is_active = 1.
+Luồng sự kiện chính | 1. Operator mở ứng dụng và nhập email/mật khẩu. / 2. Backend xác thực thông tin đăng nhập với bảng users (kiểm tra password_hash). / 3. Ứng dụng Android lấy fcm_token hiện tại từ Firebase SDK. / 4. Ứng dụng gửi fcm_token lên backend để lưu/cập nhật vào device_tokens. / 5. Operator có thể sử dụng đầy đủ chức năng của ứng dụng (UC-01 đến UC-11 tùy quyền role).
+Luồng thay thế | 3a. Thiết bị đã từng đăng ký trước đó: hệ thống cập nhật last_seen_at thay vì tạo bản ghi mới (nhờ ràng buộc UNIQUE trên fcm_token).
+Ngoại lệ | Sai email/mật khẩu: hệ thống từ chối đăng nhập, không tiết lộ email có tồn tại hay không (tránh dò tài khoản). / Tài khoản is_active = 0: hệ thống từ chối đăng nhập dù đúng mật khẩu.
+Liên quan | Liên quan bảng: users, device_tokens.

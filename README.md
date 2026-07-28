@@ -1,311 +1,155 @@
 # AI Face Recognition Security System
 
-Flutter + FastAPI project for registering known people from face images. The
-current working feature is image-based registration:
+Flutter + FastAPI application for registering known people and analyzing
+persons from a laptop webcam or an uploaded video.
+
+## Processing modes
+
+| Mode | Input | Results | Persistence |
+|---|---|---|---|
+| Live surveillance | Laptop webcam/configured camera | Annotated frames, recognition status, logs and alerts | Sessions, meaningful detection events, confirmed unknown alerts, and alert snapshots are saved |
+| Uploaded video | MP4, AVI, MOV, MKV or WebM | Progress, annotated frames, and temporary events | Nothing is written to surveillance history; the upload is deleted after processing |
+
+Only one mode can run at a time so the demonstration does not run two heavy AI
+pipelines concurrently.
+
+## Project structure
 
 ```text
-name + face images
--> backend validates images
--> detects one face per image
--> saves cropped face images
--> extracts InsightFace embeddings
--> stores person/image/embedding records in SQLite
--> Flutter shows registered people
+backend/                FastAPI, SQLite, YOLO/ByteTrack and InsightFace
+app_flutter/            Flutter desktop/mobile client
+scripts/                startup, smoke-test and verification helpers
+beta_testing_files_02/  teammate presentation pipeline; not production code
+docs/                   report and assignment documents
 ```
-
-## Project Structure
-
-```text
-.
-+-- backend/              # FastAPI, SQLite, AI registration pipeline
-+-- app_flutter/          # Flutter desktop/mobile UI
-+-- beta_testing_files/   # experimental notebooks/scripts only
-+-- docs/                 # project guideline/report files
-```
-
-## What Is Implemented
-
-- Register a person with multiple face images.
-- Reject unreadable images, no-face images, and multiple-face images.
-- Save cropped face images to `backend/data/known_faces/`.
-- Save InsightFace `.npy` embeddings to `backend/data/embeddings/`.
-- Store people and embedding paths in `backend/database/app.db`.
-- Show registered people in Flutter.
-- Delete registered people and their saved files.
-
-Not implemented yet:
-
-- live webcam recognition
-- known/unknown matching
-- alerts/logs connected to the backend
 
 ## Prerequisites
 
-Install these before running the project:
-
-- Python 3.12 recommended
+- Python 3.12
 - Flutter SDK
 - Git
-- Windows: Visual Studio with Desktop development tools for Windows if running
-  the Flutter Windows app
-- macOS: Xcode if running the Flutter macOS app
+- Windows desktop: Visual Studio Desktop development tools
+- macOS desktop: Xcode
 
-Check tools:
+## Install
 
-```bash
-python --version
-flutter doctor
-git --version
-```
-
-## Clone
-
-```bash
-git clone <your-repo-url>
-cd "Internship Project_v01"
-```
-
-If your folder has a different name, use that folder instead.
-
-## Backend Setup
-
-Run all backend commands from the project root, not from inside `backend/`.
-
-### Windows PowerShell
+From the project root:
 
 ```powershell
-cd "D:\HomePage_D\Internship Project_v01"
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
-```
-
-If PowerShell blocks activation, run:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Then activate again.
-
-### macOS Terminal
-
-```bash
-cd "/path/to/Internship Project_v01"
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r backend/requirements.txt
-```
-
-## Download / Initialize InsightFace Model
-
-The project uses InsightFace `buffalo_l`. The model is downloaded automatically
-the first time this command runs:
-
-### Windows PowerShell
-
-```powershell
-python -c "from backend.ai.embedding_manager import InsightFaceEmbeddingManager; InsightFaceEmbeddingManager()._get_app(); print('InsightFace buffalo_l ready')"
-```
-
-### macOS Terminal
-
-```bash
-python -c "from backend.ai.embedding_manager import InsightFaceEmbeddingManager; InsightFaceEmbeddingManager()._get_app(); print('InsightFace buffalo_l ready')"
-```
-
-Expected model location:
-
-```text
-backend/models/insightface/models/buffalo_l/
-```
-
-This folder is large and is ignored by Git.
-
-## Run Backend
-
-Keep this terminal open while using Flutter.
-
-### Windows PowerShell
-
-```powershell
-cd "D:\HomePage_D\Internship Project_v01"
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-### macOS Terminal
-
-```bash
-cd "/path/to/Internship Project_v01"
-source .venv/bin/activate
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Health check:
-
-```text
-http://127.0.0.1:8000/health
-```
-
-Expected response:
-
-```json
-{"status":"ok"}
-```
-
-## Flutter Setup
-
-Open a second terminal.
-
-### Windows
-
-```powershell
-cd "D:\HomePage_D\Internship Project_v01\app_flutter"
+cd app_flutter
 flutter pub get
-flutter run -d windows
+cd ..
 ```
 
-### macOS
+InsightFace `buffalo_l` and the configured YOLO model load lazily. Their model
+assets may download on the first real registration or analysis request:
 
-```bash
-cd "/path/to/Internship Project_v01/app_flutter"
-flutter pub get
-flutter run -d macos
+```powershell
+python -c "from backend.ai.embedding_manager import InsightFaceEmbeddingManager; InsightFaceEmbeddingManager()._get_app(); print('InsightFace ready')"
 ```
 
-The Flutter app expects the backend at:
+## Run
 
-```text
-http://127.0.0.1:8000
+Open two PowerShell terminals at the project root.
+
+Terminal 1:
+
+```powershell
+.\scripts\start_backend.ps1
 ```
 
-You can override it at build/run time:
+Terminal 2:
 
-```bash
+```powershell
+.\scripts\start_flutter.ps1
+```
+
+Manual equivalents:
+
+```powershell
+python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+cd app_flutter
 flutter run -d windows --dart-define=BACKEND_URL=http://127.0.0.1:8000
 ```
 
-On macOS:
-
-```bash
-flutter run -d macos --dart-define=BACKEND_URL=http://127.0.0.1:8000
-```
-
-## How To Use Current App
-
-1. Start the backend.
-2. Start Flutter.
-3. Open the Register tab.
-4. Enter a person name.
-5. Choose face images.
-6. Click Register.
-7. Check accepted/rejected image feedback.
-8. Confirm the person appears in Registered people or the Members tab.
-
-Good registration images:
-
-- one person per image
-- clear face
-- not blurry
-- enough lighting
-- face not too small
-
-## Local Files Created At Runtime
-
-These are generated locally and should not be committed:
-
-```text
-backend/database/app.db
-backend/data/known_faces/
-backend/data/embeddings/
-backend/data/snapshots/
-backend/models/
-```
-
-They are ignored in `.gitignore`.
-
-## API Endpoints Currently Available
-
-```text
-GET    /health
-POST   /members/register
-GET    /members
-GET    /members/{id}
-DELETE /members/{id}
-```
-
-## Troubleshooting
-
-### Flutter says backend is Offline
-
-Make sure backend is running:
+Useful backend diagnostics:
 
 ```text
 http://127.0.0.1:8000/health
+http://127.0.0.1:8000/health/readiness
+http://127.0.0.1:8000/docs
 ```
 
-If this does not return `{"status":"ok"}`, restart the backend.
+The readiness endpoint verifies the SQLite schema and writable runtime
+directories without loading or downloading AI models.
 
-### Registration succeeds but Members tab looks stale
+## First-time use
 
-Open the Members tab or click the refresh button. The Register tab also has a
-registered-people section that refreshes after successful registration.
+1. Start the backend and Flutter application.
+2. Register known people from clear, single-face images.
+3. Open **Surveillance**.
+4. For webcam monitoring, select **Live webcam**. If the camera list is empty,
+   click **Add laptop webcam**, then click **Start**.
+5. For file analysis, select **Upload video** and choose a supported video.
+6. Open **Persistent Logs & Alerts** to review live-webcam history. Uploaded
+   video results intentionally never appear there.
 
-### Model download fails
+## Persistence boundary
 
-Run the model initialization command again. It downloads from the official
-InsightFace release URL through the `insightface` package.
+SQLite stores members, embeddings, camera configurations, live sessions,
+detection logs, alerts, and zones. Runtime files are written below
+`backend/data/` and the database defaults to `backend/database/app.db`.
 
-If a partial model folder exists, delete:
+Uploaded-video jobs have no database table. Their input, latest annotated frame,
+progress and events are temporary. Completed results expire from memory after
+the configured TTL (30 minutes by default).
 
-```text
-backend/models/insightface/models/buffalo_l/
+## Configuration
+
+Copy values from [backend/.env.example](backend/.env.example) into environment
+variables as needed. Important options include:
+
+- `BACKEND_HOST`, `BACKEND_PORT`, `CORS_ORIGINS`
+- AI thresholds and model paths
+- live unknown-confirmation and alert-cooldown settings
+- uploaded-video maximum size, result TTL and maximum event count
+
+The Flutter backend URL can be changed with:
+
+```powershell
+flutter run -d windows --dart-define=BACKEND_URL=http://HOST:PORT
 ```
 
-Then rerun the initialization command.
+## Verification
 
-### Python package install fails on macOS
+Run the complete automated checks:
 
-Make sure you are using a normal Python 3.12 environment:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -r backend/requirements.txt
+```powershell
+.\scripts\verify_project.ps1
 ```
 
-### Flutter desktop target is missing
+With the backend already running, perform a non-mutating endpoint smoke test:
 
-Run:
-
-```bash
-flutter doctor
+```powershell
+python scripts\smoke_test.py
 ```
 
-Then enable the platform if needed:
+The smoke test reads health, readiness, member, camera, surveillance-status,
+log, and alert endpoints. It never starts a camera, submits a video, or changes
+database records.
 
-```bash
-flutter config --enable-windows-desktop
-flutter config --enable-macos-desktop
-```
+## Troubleshooting
 
-Use only the command for your OS.
-
-## Developer Checks
-
-Backend:
-
-```bash
-python -m compileall backend
-```
-
-Flutter:
-
-```bash
-cd app_flutter
-flutter analyze
-```
+- **Backend is offline:** open `/health/readiness` and confirm its status is
+  `ready`.
+- **Laptop camera cannot open:** close applications currently using the webcam,
+  confirm the camera source is `0`, and try again.
+- **Live start returns HTTP 409:** cancel or wait for uploaded-video analysis.
+- **Video upload returns HTTP 409:** stop live surveillance first.
+- **First analysis is slow:** the AI assets may still be downloading or
+  initializing.
+- **No unknown alert appears immediately:** an unknown track must remain
+  unknown for the configured confirmation-frame count.

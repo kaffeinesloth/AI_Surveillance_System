@@ -13,7 +13,12 @@ from backend.ai.embedding_manager import (
 from backend.ai.face_cropper import CroppedFaceImage, crop_face_image
 from backend.ai.face_detector import FaceDetectionError, FaceDetector
 from backend.ai.image_validator import ImageValidationError, validate_uploaded_image
-from backend.app.config import BASE_DIR, EMBEDDINGS_DIR, KNOWN_FACES_DIR
+from backend.app.config import (
+    EMBEDDINGS_DIR,
+    KNOWN_FACES_DIR,
+    resolve_storage_path,
+    serialize_storage_path,
+)
 
 
 @dataclass(frozen=True)
@@ -30,10 +35,28 @@ class RejectedRegistrationImage:
 
 
 class MemberService:
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        face_detector: FaceDetector | None = None,
+        embedding_manager: InsightFaceEmbeddingManager | None = None,
+    ) -> None:
         self.connection = connection
-        self.face_detector = FaceDetector()
-        self.embedding_manager = InsightFaceEmbeddingManager()
+        self._face_detector = face_detector
+        self._embedding_manager = embedding_manager
+
+    @property
+    def face_detector(self) -> FaceDetector:
+        if self._face_detector is None:
+            self._face_detector = FaceDetector()
+        return self._face_detector
+
+    @property
+    def embedding_manager(self) -> InsightFaceEmbeddingManager:
+        if self._embedding_manager is None:
+            self._embedding_manager = InsightFaceEmbeddingManager()
+        return self._embedding_manager
 
     async def register_member(self, name: str, images: list[UploadFile]) -> dict:
         clean_name = name.strip()
@@ -51,7 +74,10 @@ class MemberService:
 
         for image in upload_images:
             filename = image.filename or "unnamed image"
-            content = await image.read()
+            try:
+                content = await image.read()
+            finally:
+                await image.close()
             try:
                 validated_image = validate_uploaded_image(image.filename, content)
             except ImageValidationError as exc:
@@ -99,21 +125,19 @@ class MemberService:
         person_id = int(cursor.lastrowid)
         person_dir = KNOWN_FACES_DIR / f"{person_id}_{self._slugify(clean_name)}"
         embedding_dir = EMBEDDINGS_DIR / f"{person_id}_{self._slugify(clean_name)}"
-        person_dir.mkdir(parents=True, exist_ok=True)
-        embedding_dir.mkdir(parents=True, exist_ok=True)
 
         saved_paths: list[str] = []
         saved_embedding_paths: list[str] = []
         try:
+            person_dir.mkdir(parents=True, exist_ok=False)
+            embedding_dir.mkdir(parents=True, exist_ok=False)
             for index, image in enumerate(registration_images, start=1):
                 file_stem = f"{index:03d}_{uuid4().hex}"
                 filename = f"{file_stem}{image.cropped_image.extension}"
                 target_path = person_dir / filename
                 with target_path.open("wb") as output:
                     output.write(image.cropped_image.content)
-                saved_paths.append(
-                    str(target_path.relative_to(KNOWN_FACES_DIR.parents[1]))
-                )
+                saved_paths.append(serialize_storage_path(target_path))
                 embedding_path = embedding_dir / f"{file_stem}.npy"
                 saved_embedding_paths.append(
                     self.embedding_manager.save_embedding(
@@ -131,10 +155,10 @@ class MemberService:
             self.connection.commit()
         except Exception:
             self.connection.rollback()
-            for saved_path in saved_paths + saved_embedding_paths:
-                absolute_path = Path(__file__).resolve().parents[1] / saved_path
-                if absolute_path.exists():
-                    absolute_path.unlink()
+            self._cleanup_registration_artifacts(
+                saved_paths + saved_embedding_paths,
+                (person_dir, embedding_dir),
+            )
             raise
 
         member = self.get_member(person_id)
@@ -231,18 +255,36 @@ class MemberService:
 
     @staticmethod
     def _delete_local_file(relative_path: str) -> None:
-        target = BASE_DIR / relative_path
+        target = resolve_storage_path(relative_path)
         try:
-            resolved = target.resolve()
-            if not resolved.is_relative_to(BASE_DIR.resolve()):
+            allowed_roots = (
+                KNOWN_FACES_DIR.resolve(),
+                EMBEDDINGS_DIR.resolve(),
+            )
+            if not any(target.is_relative_to(root) for root in allowed_roots):
                 return
-            if resolved.exists() and resolved.is_file():
-                resolved.unlink()
-                parent = resolved.parent
+            if target.exists() and target.is_file():
+                target.unlink()
+                parent = target.parent
                 if parent.exists() and not any(parent.iterdir()):
                     parent.rmdir()
         except OSError:
             return
+
+    @classmethod
+    def _cleanup_registration_artifacts(
+        cls,
+        stored_paths: list[str],
+        directories: tuple[Path, Path],
+    ) -> None:
+        for stored_path in stored_paths:
+            cls._delete_local_file(stored_path)
+        for directory in directories:
+            try:
+                if directory.exists() and not any(directory.iterdir()):
+                    directory.rmdir()
+            except OSError:
+                continue
 
     @staticmethod
     def _slugify(value: str) -> str:

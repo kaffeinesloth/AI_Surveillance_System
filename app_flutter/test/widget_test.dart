@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('shows the four-page security UI shell', (tester) async {
+  testWidgets('shows the five-page security UI shell', (tester) async {
     await tester.pumpWidget(const FaceSecurityApp());
 
     expect(find.text('AI Face Recognition Security System'), findsOneWidget);

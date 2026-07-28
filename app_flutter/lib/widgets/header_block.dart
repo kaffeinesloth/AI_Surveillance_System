@@ -6,11 +6,13 @@ class HeaderBlock extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.icon,
+    this.trailing,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -37,21 +39,22 @@ class HeaderBlock extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF111827),
-                        ),
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF111827),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF6B7280),
-                          height: 1.35,
-                        ),
+                      color: const Color(0xFF6B7280),
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
             ),
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
         ),
       ),

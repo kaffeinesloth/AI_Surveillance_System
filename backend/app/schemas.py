@@ -1,4 +1,12 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from backend.app.models import (
+    AlertType,
+    DetectionStatus,
+    LiveSurveillanceState,
+    SurveillanceSessionStatus,
+    VideoAnalysisState,
+)
 
 
 class FaceImage(BaseModel):
@@ -19,6 +27,216 @@ class MemberDetail(Member):
     images: list[FaceImage]
 
 
+class RegistrationImageResult(BaseModel):
+    filename: str
+    status: str
+    reason: str
+
+
 class RegisterMemberResponse(BaseModel):
     member: MemberDetail
     message: str
+    accepted_images: list[RegistrationImageResult]
+    rejected_images: list[RegistrationImageResult]
+
+
+class DeleteMemberResponse(BaseModel):
+    message: str
+
+
+class CameraCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    source: str = Field(min_length=1, max_length=2048)
+    location: str | None = Field(default=None, max_length=255)
+
+
+class CameraUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    source: str | None = Field(default=None, min_length=1, max_length=2048)
+    location: str | None = Field(default=None, max_length=255)
+    is_active: bool | None = None
+
+
+class Camera(BaseModel):
+    id: int
+    name: str
+    source: str
+    location: str | None
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+
+class CameraDeleteResponse(BaseModel):
+    message: str
+    camera: Camera
+
+
+class CameraTestResponse(BaseModel):
+    available: bool
+    width: int
+    height: int
+    message: str
+
+
+class SurveillanceSession(BaseModel):
+    id: int
+    camera_id: int
+    status: SurveillanceSessionStatus
+    started_at: str
+    ended_at: str | None
+    average_fps: float | None
+    frames_processed: int
+    error_message: str | None
+
+
+class SurveillanceStartRequest(BaseModel):
+    camera_id: int = Field(gt=0)
+
+
+class SurveillanceStatus(BaseModel):
+    state: LiveSurveillanceState
+    running: bool
+    camera_id: int | None
+    session_id: int | None
+    frames_processed: int
+    fps: float
+    started_at: str | None
+    error_message: str | None
+
+
+class AnalysisBoundingBox(BaseModel):
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+
+class AnalysisTrack(BaseModel):
+    track_id: int
+    bounding_box: AnalysisBoundingBox
+    person_confidence: float
+    status: DetectionStatus
+    member_id: int | None
+    member_name: str | None
+    similarity: float | None
+    face_confidence: float | None
+
+
+class LatestFrameAnalysis(BaseModel):
+    frame_index: int
+    timestamp_seconds: float
+    width: int
+    height: int
+    tracks: list[AnalysisTrack]
+
+
+class VideoAnalysisStatus(BaseModel):
+    job_id: str
+    filename: str
+    state: VideoAnalysisState
+    persistent: bool
+    processed_frames: int
+    total_frames: int | None
+    progress: float | None
+    processing_fps: float
+    created_at: str
+    completed_at: str | None
+    error_message: str | None
+
+
+class TemporaryVideoEvent(BaseModel):
+    frame_index: int
+    timestamp_seconds: float
+    track_id: int
+    status: DetectionStatus
+    member_id: int | None
+    member_name: str | None
+    similarity: float | None
+    event_type: str
+
+
+class VideoAnalysisSummary(BaseModel):
+    total_frames: int
+    duration_seconds: float
+    average_processing_fps: float
+    known_events: int
+    unknown_events: int
+    events_truncated: bool
+
+
+class VideoAnalysisResults(BaseModel):
+    job_id: str
+    filename: str
+    state: VideoAnalysisState
+    persistent: bool
+    summary: VideoAnalysisSummary
+    events: list[TemporaryVideoEvent]
+    error_message: str | None
+
+
+class VideoAnalysisDeleteResponse(BaseModel):
+    message: str
+    job_id: str
+
+
+class DetectionLog(BaseModel):
+    id: int
+    session_id: int
+    camera_id: int
+    member_id: int | None
+    track_id: int | None
+    status: DetectionStatus
+    confidence: float | None
+    snapshot_path: str | None
+    detected_at: str
+
+
+class DetectionLogView(DetectionLog):
+    member_name: str | None
+    camera_name: str
+
+
+class Alert(BaseModel):
+    id: int
+    session_id: int
+    camera_id: int
+    detection_log_id: int | None
+    member_id: int | None
+    alert_type: AlertType
+    message: str
+    confidence: float | None
+    snapshot_path: str | None
+    is_read: bool
+    created_at: str
+
+
+class AlertView(Alert):
+    member_name: str | None
+    camera_name: str
+    snapshot_url: str | None
+
+
+class AlertReadUpdate(BaseModel):
+    is_read: bool = True
+
+
+class ZonePoint(BaseModel):
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+
+
+class ZoneCreate(BaseModel):
+    camera_id: int = Field(gt=0)
+    name: str = Field(min_length=1, max_length=120)
+    points: list[ZonePoint] = Field(min_length=3)
+
+
+class Zone(BaseModel):
+    id: int
+    camera_id: int
+    name: str
+    polygon_json: str
+    is_active: bool
+    created_at: str
+    updated_at: str

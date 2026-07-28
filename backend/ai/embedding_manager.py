@@ -8,9 +8,11 @@ from PIL import Image, ImageOps
 
 from backend.app.config import (
     EMBEDDINGS_DIR,
+    FACE_DETECTION_THRESHOLD,
     INSIGHTFACE_DET_SIZE,
     INSIGHTFACE_MODEL_NAME,
     INSIGHTFACE_ROOT,
+    serialize_storage_path,
 )
 
 
@@ -46,7 +48,41 @@ class InsightFaceEmbeddingManager:
     def save_embedding(self, embedding: np.ndarray, target_path: Path) -> str:
         target_path.parent.mkdir(parents=True, exist_ok=True)
         np.save(target_path, embedding)
-        return str(target_path.relative_to(EMBEDDINGS_DIR.parents[1]))
+        return serialize_storage_path(target_path)
+
+    def extract_best_embedding_from_bgr(
+        self,
+        image_bgr: np.ndarray,
+        *,
+        padding_ratio: float = 0.0,
+    ) -> tuple[np.ndarray | None, float | None]:
+        if image_bgr is None or image_bgr.size == 0:
+            return None, None
+
+        image = image_bgr
+        if padding_ratio > 0:
+            height, width = image.shape[:2]
+            pad_y = int(height * padding_ratio)
+            pad_x = int(width * padding_ratio)
+            image = cv2.copyMakeBorder(
+                image,
+                pad_y,
+                pad_y,
+                pad_x,
+                pad_x,
+                cv2.BORDER_REFLECT,
+            )
+
+        faces = self._get_app().get(image)
+        if not faces:
+            return None, None
+
+        best_face = max(faces, key=lambda face: float(face.det_score))
+        embedding = np.asarray(best_face.normed_embedding, dtype=np.float32)
+        if embedding.size == 0:
+            return None, float(best_face.det_score)
+        embedding /= np.linalg.norm(embedding) + 1e-10
+        return embedding, float(best_face.det_score)
 
     @classmethod
     def _get_app(cls):
@@ -60,7 +96,11 @@ class InsightFaceEmbeddingManager:
                     root=str(INSIGHTFACE_ROOT),
                     providers=["CPUExecutionProvider"],
                 )
-                app.prepare(ctx_id=-1, det_size=INSIGHTFACE_DET_SIZE)
+                app.prepare(
+                    ctx_id=-1,
+                    det_size=INSIGHTFACE_DET_SIZE,
+                    det_thresh=FACE_DETECTION_THRESHOLD,
+                )
                 cls._app = app
             return cls._app
 

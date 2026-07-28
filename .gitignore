@@ -1,13 +1,17 @@
+__pycache__/
+*.py[cod]
 backend/database/*.db
 backend/data/known_faces/*
 backend/data/embeddings/*
 backend/data/snapshots/*
 backend/data/test_videos/*
+backend/data/temp_uploads/*
 backend/models/
 !backend/data/known_faces/.gitkeep
 !backend/data/embeddings/.gitkeep
 !backend/data/snapshots/.gitkeep
 !backend/data/test_videos/.gitkeep
+!backend/data/temp_uploads/.gitkeep
 *.pt
 *.onnx
 *.npy

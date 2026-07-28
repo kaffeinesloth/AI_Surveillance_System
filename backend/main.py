@@ -1,28 +1,56 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.config import CORS_ORIGINS, ensure_runtime_directories
 from backend.app.database import init_db
-from backend.routes import member_routes
-
-app = FastAPI(title="AI Face Security Backend")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+from backend.routes import (
+    alert_routes,
+    camera_routes,
+    log_routes,
+    member_routes,
+    surveillance_routes,
+    system_routes,
+    video_analysis_routes,
 )
+from backend.services.surveillance_manager import surveillance_manager
+from backend.services.video_analysis_manager import video_analysis_manager
 
 
-@app.on_event("startup")
-def on_startup() -> None:
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    ensure_runtime_directories()
     init_db()
+    yield
+    surveillance_manager.shutdown()
+    video_analysis_manager.shutdown()
 
 
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+def create_app(*, initialize_database: bool = True) -> FastAPI:
+    app_lifespan = lifespan if initialize_database else None
+    application = FastAPI(
+        title="AI Face Security Backend",
+        lifespan=app_lifespan,
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=CORS_ORIGINS,
+        allow_credentials="*" not in CORS_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    application.include_router(system_routes.router)
+    application.include_router(member_routes.router)
+    application.include_router(camera_routes.router)
+    application.include_router(surveillance_routes.router)
+    application.include_router(log_routes.router)
+    application.include_router(alert_routes.router)
+    application.include_router(video_analysis_routes.router)
+    return application
 
 
-app.include_router(member_routes.router)
+app = create_app()

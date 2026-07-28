@@ -1,0 +1,85 @@
+import 'package:app_flutter/services/security_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+void main() {
+  test('parses camera and surveillance contracts', () async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/cameras') {
+        return http.Response(
+          '[{"id":1,"name":"Laptop webcam","source":"0",'
+          '"location":"Desk","is_active":true,'
+          '"created_at":"now","updated_at":"now"}]',
+          200,
+        );
+      }
+      return http.Response(
+        '{"state":"running","running":true,"camera_id":1,"session_id":4,'
+        '"frames_processed":25,"fps":12.5,"started_at":"now",'
+        '"error_message":null}',
+        200,
+      );
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final cameras = await service.listCameras();
+    final status = await service.surveillanceStatus();
+
+    expect(cameras.single.source, '0');
+    expect(status.running, isTrue);
+    expect(status.sessionId, 4);
+    expect(status.fps, 12.5);
+  });
+
+  test('temporary video results preserve the non-persistent marker', () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        '{"job_id":"job-1","filename":"demo.mp4","state":"completed",'
+        '"persistent":false,"summary":{"total_frames":5,'
+        '"duration_seconds":1.0,"average_processing_fps":5.0,'
+        '"known_events":1,"unknown_events":0,"events_truncated":false},'
+        '"events":[{"frame_index":3,"timestamp_seconds":0.6,"track_id":2,'
+        '"status":"known","member_id":1,"member_name":"Tuan",'
+        '"similarity":0.91,"event_type":"known_identity"}],'
+        '"error_message":null}',
+        200,
+      ),
+    );
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final results = await service.videoResults('job-1');
+
+    expect(results.persistent, isFalse);
+    expect(results.knownEvents, 1);
+    expect(results.events.single.memberName, 'Tuan');
+  });
+
+  test('backend detail becomes an ApiException', () async {
+    final client = MockClient(
+      (request) async =>
+          http.Response('{"detail":"Stop live surveillance first"}', 409),
+    );
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    expect(
+      service.startSurveillance(1),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          'Stop live surveillance first',
+        ),
+      ),
+    );
+  });
+}
