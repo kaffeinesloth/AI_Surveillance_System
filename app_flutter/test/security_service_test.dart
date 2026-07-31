@@ -82,4 +82,42 @@ void main() {
       ),
     );
   });
+
+  test('deleteLog calls the persistent log delete endpoint', () async {
+    Uri? requestedUrl;
+    final client = MockClient((request) async {
+      requestedUrl = request.url;
+      return http.Response(
+        '{"message":"Detection log deleted",'
+        '"deleted_log_id":7,"deleted_snapshot":true}',
+        200,
+      );
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    await service.deleteLog(7);
+
+    expect(requestedUrl?.path, '/logs/7');
+  });
+
+  test('delete helpers call persistent delete endpoints', () async {
+    final requestedPaths = <String>[];
+    final client = MockClient((request) async {
+      requestedPaths.add(request.url.path);
+      return http.Response('{}', 200);
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    await service.deleteAllLogs();
+    await service.deleteAlert(8);
+    await service.deleteAllAlerts();
+
+    expect(requestedPaths, ['/logs/all', '/alerts/8', '/alerts/all']);
+  });
 }

@@ -99,7 +99,11 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       final status = await _service.stopSurveillance();
       _liveTimer?.cancel();
       if (!mounted) return;
-      setState(() => _liveStatus = status);
+      setState(() {
+        _liveStatus = status;
+        _latest = null;
+        _frame = null;
+      });
     });
   }
 
@@ -126,6 +130,10 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
         _liveStatus = status;
         if (latest != null) _latest = latest;
         if (frame != null) _frame = frame;
+        if (!status.running) {
+          _latest = null;
+          _frame = null;
+        }
       });
       if (!status.running) _liveTimer?.cancel();
     } catch (error) {
@@ -173,13 +181,21 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     if (jobId == null) return;
     try {
       final status = await _service.videoStatus(jobId);
-      final results = await _service.videoResults(jobId);
+      VideoAnalysisResultsModel? results;
+      try {
+        results = await _service.videoResults(jobId);
+      } on ApiException catch (error) {
+        if (error.statusCode != 404) rethrow;
+      }
       final frame = await _service.videoFrame(jobId);
       if (!mounted) return;
       setState(() {
         _videoStatus = status;
-        _videoResults = results;
+        if (results != null) _videoResults = results;
         if (frame != null) _frame = frame;
+        if (status.errorMessage != null && status.errorMessage!.isNotEmpty) {
+          _error = status.errorMessage;
+        }
       });
       if (!status.isActive) _videoTimer?.cancel();
     } catch (error) {
@@ -267,6 +283,8 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
 
   Widget _buildLive(BuildContext context) {
     final running = _liveStatus?.running ?? false;
+    final failed = _liveStatus?.state == 'failed';
+    final liveError = _liveStatus?.errorMessage;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -324,12 +342,33 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                 Text(
                   running
                       ? '${_liveStatus!.fps.toStringAsFixed(1)} FPS · ${_liveStatus!.framesProcessed} frames'
+                      : failed
+                      ? 'Camera failed'
                       : 'Camera stopped',
                 ),
               ],
             ),
           ),
         ),
+        if (failed && liveError != null && liveError.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          MaterialBanner(
+            content: Text(liveError),
+            leading: const Icon(Icons.error_outline),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _liveStatus = null;
+                    _error = null;
+                  });
+                  _loadLive();
+                },
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         _framePanel(),
         const SizedBox(height: 12),
@@ -391,10 +430,19 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                 if (status != null) ...[
                   const SizedBox(height: 12),
                   Text('${status.filename} · ${status.state}'),
+                  if (status.errorMessage != null &&
+                      status.errorMessage!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      status.errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: status.progress?.clamp(0, 1),
-                  ),
+                  LinearProgressIndicator(value: status.progress?.clamp(0, 1)),
                   const SizedBox(height: 6),
                   Text(
                     '${status.processedFrames} frames · '

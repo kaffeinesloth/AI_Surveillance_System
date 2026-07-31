@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.app.database import db_session
 from backend.app.models import DetectionStatus
 from backend.app.schemas import DetectionLogView
+from backend.app.schemas import DeleteLogResponse
+from backend.app.schemas import DeleteLogsResponse
 from backend.services.log_service import LogService
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -38,3 +40,19 @@ def get_latest_log(service: LogService = Depends(get_log_service)):
     if log is None:
         raise HTTPException(status_code=404, detail="No detection logs found")
     return log
+
+
+@router.delete("/all", response_model=DeleteLogsResponse)
+def delete_all_logs(service: LogService = Depends(get_log_service)):
+    return service.delete_all_logs()
+
+
+@router.delete("/{log_id}", response_model=DeleteLogResponse)
+def delete_log(
+    log_id: int,
+    service: LogService = Depends(get_log_service),
+):
+    deleted = service.delete_log(log_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="Detection log not found")
+    return deleted

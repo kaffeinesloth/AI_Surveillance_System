@@ -62,6 +62,7 @@ INSIGHTFACE_ROOT = _path_setting(
     MODELS_DIR / "insightface",
 )
 INSIGHTFACE_MODEL_NAME = os.getenv("INSIGHTFACE_MODEL_NAME", "buffalo_l")
+YOLO_MODELS_DIR = _path_setting("YOLO_MODELS_DIR", MODELS_DIR / "yolo")
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 MIN_FACE_IMAGE_WIDTH = _int_setting("MIN_FACE_IMAGE_WIDTH", 80)
@@ -81,7 +82,9 @@ INSIGHTFACE_DET_SIZE = (
     _int_setting("INSIGHTFACE_DET_WIDTH", 640),
     _int_setting("INSIGHTFACE_DET_HEIGHT", 640),
 )
-YOLO_MODEL_PATH = os.getenv("YOLO_MODEL_PATH", "yolov8n.pt")
+YOLO_MODEL_PATH = str(
+    _path_setting("YOLO_MODEL_PATH", YOLO_MODELS_DIR / "yolov8n.pt")
+)
 CAMERA_READ_FAILURE_LIMIT = _int_setting("CAMERA_READ_FAILURE_LIMIT", 5)
 SURVEILLANCE_STOP_TIMEOUT_SECONDS = _float_setting(
     "SURVEILLANCE_STOP_TIMEOUT_SECONDS",
@@ -117,6 +120,9 @@ RUNTIME_DIRECTORIES = (
     SNAPSHOTS_DIR,
     TEST_VIDEOS_DIR,
     TEMP_UPLOADS_DIR,
+    MODELS_DIR,
+    INSIGHTFACE_ROOT,
+    YOLO_MODELS_DIR,
 )
 
 

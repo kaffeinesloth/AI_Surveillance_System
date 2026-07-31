@@ -114,6 +114,7 @@ class LogAlertApiTestCase(unittest.TestCase):
         self.connection.commit()
         self.camera_id = int(camera.lastrowid)
         self.known_log_id = int(known_log.lastrowid)
+        self.unknown_log_id = int(unknown_log.lastrowid)
         self.alert_id = int(alert.lastrowid)
 
         self.app = create_app(initialize_database=False)
@@ -192,6 +193,8 @@ class LogAlertApiTestCase(unittest.TestCase):
 
     def test_missing_records_return_404(self):
         self.assertEqual(self.client.get("/alerts/999").status_code, 404)
+        self.assertEqual(self.client.delete("/logs/999").status_code, 404)
+        self.assertEqual(self.client.delete("/alerts/999").status_code, 404)
         self.assertEqual(
             self.client.patch(
                 "/alerts/999/read",
@@ -199,6 +202,113 @@ class LogAlertApiTestCase(unittest.TestCase):
             ).status_code,
             404,
         )
+
+    def test_delete_log_removes_row_and_preserves_alert_snapshot(self):
+        response = self.client.delete(f"/logs/{self.unknown_log_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["deleted_snapshot"])
+        self.assertTrue(self.snapshot_path.exists())
+        self.assertEqual(len(self.client.get("/logs").json()), 1)
+
+        alert = self.client.get(f"/alerts/{self.alert_id}").json()
+        self.assertIsNone(alert["detection_log_id"])
+        self.assertEqual(
+            alert["snapshot_url"],
+            f"/alerts/{self.alert_id}/snapshot",
+        )
+
+    def test_delete_log_removes_unreferenced_snapshot_file(self):
+        standalone_snapshot = self.snapshots_dir / "standalone.jpg"
+        standalone_snapshot.write_bytes(b"\xff\xd8standalone\xff\xd9")
+        standalone_log = self.connection.execute(
+            """
+            INSERT INTO detection_logs (
+                session_id,
+                camera_id,
+                track_id,
+                status,
+                confidence,
+                snapshot_path
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                1,
+                self.camera_id,
+                3,
+                "unknown",
+                0.31,
+                str(standalone_snapshot),
+            ),
+        )
+        self.connection.commit()
+
+        response = self.client.delete(f"/logs/{standalone_log.lastrowid}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["deleted_snapshot"])
+        self.assertFalse(standalone_snapshot.exists())
+
+    def test_delete_all_logs_removes_rows_and_keeps_alert_snapshot(self):
+        response = self.client.delete("/logs/all")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted_count"], 2)
+        self.assertEqual(response.json()["deleted_snapshots"], 0)
+        self.assertEqual(self.client.get("/logs").json(), [])
+        self.assertTrue(self.snapshot_path.exists())
+        alert = self.client.get(f"/alerts/{self.alert_id}").json()
+        self.assertIsNone(alert["detection_log_id"])
+
+    def test_delete_alert_removes_row_and_preserves_log_snapshot(self):
+        response = self.client.delete(f"/alerts/{self.alert_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["deleted_snapshot"])
+        self.assertTrue(self.snapshot_path.exists())
+        self.assertEqual(self.client.get("/alerts").json(), [])
+        self.assertEqual(len(self.client.get("/logs").json()), 2)
+
+    def test_delete_alert_removes_unreferenced_snapshot_file(self):
+        standalone_snapshot = self.snapshots_dir / "alert-only.jpg"
+        standalone_snapshot.write_bytes(b"\xff\xd8alert-only\xff\xd9")
+        alert = self.connection.execute(
+            """
+            INSERT INTO alerts (
+                session_id,
+                camera_id,
+                alert_type,
+                message,
+                snapshot_path
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                1,
+                self.camera_id,
+                "unknown_person",
+                "Alert-only snapshot",
+                str(standalone_snapshot),
+            ),
+        )
+        self.connection.commit()
+
+        response = self.client.delete(f"/alerts/{alert.lastrowid}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["deleted_snapshot"])
+        self.assertFalse(standalone_snapshot.exists())
+
+    def test_delete_all_alerts_removes_rows_and_keeps_log_snapshot(self):
+        response = self.client.delete("/alerts/all")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted_count"], 1)
+        self.assertEqual(response.json()["deleted_snapshots"], 0)
+        self.assertEqual(self.client.get("/alerts").json(), [])
+        self.assertTrue(self.snapshot_path.exists())
+        self.assertEqual(len(self.client.get("/logs").json()), 2)
 
 
 if __name__ == "__main__":

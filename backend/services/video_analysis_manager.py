@@ -1,6 +1,7 @@
 import sqlite3
 import threading
 import time
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -21,6 +22,9 @@ from backend.services.gallery_service import (
     build_analysis_runtime,
 )
 from backend.services.temporary_event_collector import TemporaryEventCollector
+
+
+logger = logging.getLogger(__name__)
 
 
 class VideoAnalysisError(RuntimeError):
@@ -229,6 +233,23 @@ class VideoAnalysisManager:
                     if input_fps > 0
                     else time.perf_counter() - started
                 )
+                preview_encoded, preview_buffer = cv2.imencode(".jpg", frame)
+                if preview_encoded:
+                    with self._lock:
+                        job.latest_frame_jpeg = preview_buffer.tobytes()
+                        job.processed_frames = frame_index + 1
+                        job.processing_fps = (
+                            (frame_index + 1)
+                            / max(time.perf_counter() - started, 1e-9)
+                        )
+                        job.progress = (
+                            min((frame_index + 1) / job.total_frames, 1.0)
+                            if job.total_frames
+                            else None
+                        )
+                if job.cancel_event.is_set():
+                    break
+
                 analysis = runtime.engine.analyze_frame(
                     frame,
                     frame_index=frame_index,
@@ -273,6 +294,7 @@ class VideoAnalysisManager:
                     job.state = VideoAnalysisState.COMPLETED
 
         except Exception as exc:
+            logger.exception("Uploaded-video analysis failed")
             with self._lock:
                 job.state = VideoAnalysisState.FAILED
                 job.error_message = str(exc)

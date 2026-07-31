@@ -1,5 +1,7 @@
 import sqlite3
 
+from backend.app.config import resolve_storage_path
+
 
 class AlertService:
     def __init__(self, connection: sqlite3.Connection) -> None:
@@ -95,6 +97,63 @@ class AlertService:
         self.connection.commit()
         return self.get_alert(alert_id)
 
+    def delete_alert(self, alert_id: int) -> dict | None:
+        row = self.connection.execute(
+            """
+            SELECT id, snapshot_path
+            FROM alerts
+            WHERE id = ?
+            """,
+            (alert_id,),
+        ).fetchone()
+        if row is None:
+            return None
+
+        snapshot_path = row["snapshot_path"]
+        self.connection.execute(
+            "DELETE FROM alerts WHERE id = ?",
+            (alert_id,),
+        )
+        self.connection.commit()
+
+        deleted_snapshot = (
+            self._delete_snapshot_if_unreferenced(snapshot_path)
+            if snapshot_path
+            else False
+        )
+        return {
+            "message": "Alert deleted",
+            "deleted_alert_id": alert_id,
+            "deleted_snapshot": deleted_snapshot,
+        }
+
+    def delete_all_alerts(self) -> dict:
+        rows = self.connection.execute(
+            """
+            SELECT snapshot_path
+            FROM alerts
+            WHERE snapshot_path IS NOT NULL
+            """
+        ).fetchall()
+        snapshot_paths = {
+            str(row["snapshot_path"])
+            for row in rows
+            if row["snapshot_path"]
+        }
+        cursor = self.connection.execute("DELETE FROM alerts")
+        self.connection.commit()
+
+        deleted_snapshots = sum(
+            1
+            for snapshot_path in snapshot_paths
+            if self._delete_snapshot_if_unreferenced(snapshot_path)
+        )
+        return {
+            "message": "Alerts deleted",
+            "deleted_count": int(cursor.rowcount),
+            "deleted_snapshots": deleted_snapshots,
+        }
+
     @staticmethod
     def _to_alert(row: sqlite3.Row) -> dict:
         alert = dict(row)
@@ -105,3 +164,34 @@ class AlertService:
             else None
         )
         return alert
+
+    def _snapshot_is_referenced(self, snapshot_path: str) -> bool:
+        log_count = self.connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM detection_logs
+            WHERE snapshot_path = ?
+            """,
+            (snapshot_path,),
+        ).fetchone()[0]
+        alert_count = self.connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM alerts
+            WHERE snapshot_path = ?
+            """,
+            (snapshot_path,),
+        ).fetchone()[0]
+        return int(log_count) > 0 or int(alert_count) > 0
+
+    def _delete_snapshot_if_unreferenced(self, snapshot_path: str) -> bool:
+        if self._snapshot_is_referenced(snapshot_path):
+            return False
+        path = resolve_storage_path(snapshot_path)
+        try:
+            if path.exists() and path.is_file():
+                path.unlink()
+                return True
+        except OSError:
+            return False
+        return False

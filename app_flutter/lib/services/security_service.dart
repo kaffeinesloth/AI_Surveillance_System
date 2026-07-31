@@ -139,6 +139,16 @@ class SecurityService {
         .toList();
   }
 
+  Future<void> deleteLog(int logId) async {
+    final response = await _client.delete(_uri('/logs/$logId'));
+    _ensureSuccess(response);
+  }
+
+  Future<void> deleteAllLogs() async {
+    final response = await _client.delete(_uri('/logs/all'));
+    _ensureSuccess(response);
+  }
+
   Future<List<AlertModel>> listAlerts({int limit = 100}) async {
     final response = await _client.get(
       _uri('/alerts', {'limit': limit.toString()}),
@@ -157,6 +167,16 @@ class SecurityService {
     );
     _ensureSuccess(response);
     return AlertModel.fromJson(_jsonMap(response));
+  }
+
+  Future<void> deleteAlert(int alertId) async {
+    final response = await _client.delete(_uri('/alerts/$alertId'));
+    _ensureSuccess(response);
+  }
+
+  Future<void> deleteAllAlerts() async {
+    final response = await _client.delete(_uri('/alerts/all'));
+    _ensureSuccess(response);
   }
 
   String alertSnapshotUrl(int alertId) => '$baseUrl/alerts/$alertId/snapshot';
