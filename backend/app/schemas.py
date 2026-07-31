@@ -197,6 +197,18 @@ class DetectionLogView(DetectionLog):
     camera_name: str
 
 
+class DeleteLogResponse(BaseModel):
+    message: str
+    deleted_log_id: int
+    deleted_snapshot: bool
+
+
+class DeleteLogsResponse(BaseModel):
+    message: str
+    deleted_count: int
+    deleted_snapshots: int
+
+
 class Alert(BaseModel):
     id: int
     session_id: int
@@ -215,6 +227,18 @@ class AlertView(Alert):
     member_name: str | None
     camera_name: str
     snapshot_url: str | None
+
+
+class DeleteAlertResponse(BaseModel):
+    message: str
+    deleted_alert_id: int
+    deleted_snapshot: bool
+
+
+class DeleteAlertsResponse(BaseModel):
+    message: str
+    deleted_count: int
+    deleted_snapshots: int
 
 
 class AlertReadUpdate(BaseModel):

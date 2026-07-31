@@ -45,7 +45,9 @@ cd ..
 ```
 
 InsightFace `buffalo_l` and the configured YOLO model load lazily. Their model
-assets may download on the first real registration or analysis request:
+assets may download on the first real registration or analysis request. By
+default, InsightFace is stored under `backend/models/insightface/` and YOLO is
+stored at `backend/models/yolo/yolov8n.pt`:
 
 ```powershell
 python -c "from backend.ai.embedding_manager import InsightFaceEmbeddingManager; InsightFaceEmbeddingManager()._get_app(); print('InsightFace ready')"

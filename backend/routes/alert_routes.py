@@ -5,7 +5,12 @@ from fastapi.responses import FileResponse
 
 from backend.app.config import SNAPSHOTS_DIR, resolve_storage_path
 from backend.app.database import db_session
-from backend.app.schemas import AlertReadUpdate, AlertView
+from backend.app.schemas import (
+    AlertReadUpdate,
+    AlertView,
+    DeleteAlertResponse,
+    DeleteAlertsResponse,
+)
 from backend.services.alert_service import AlertService
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -60,6 +65,22 @@ def update_alert_read_status(
     if alert is None:
         raise HTTPException(status_code=404, detail="Alert not found")
     return alert
+
+
+@router.delete("/all", response_model=DeleteAlertsResponse)
+def delete_all_alerts(service: AlertService = Depends(get_alert_service)):
+    return service.delete_all_alerts()
+
+
+@router.delete("/{alert_id}", response_model=DeleteAlertResponse)
+def delete_alert(
+    alert_id: int,
+    service: AlertService = Depends(get_alert_service),
+):
+    deleted = service.delete_alert(alert_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return deleted
 
 
 @router.get("/{alert_id}/snapshot")

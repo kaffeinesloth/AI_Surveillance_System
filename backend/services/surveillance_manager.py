@@ -1,6 +1,7 @@
 import sqlite3
 import threading
 import time
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,6 +22,9 @@ from backend.services.gallery_service import (
     build_analysis_runtime,
 )
 from backend.services.live_event_service import LiveEventRecorder
+
+
+logger = logging.getLogger(__name__)
 
 
 class SurveillanceError(RuntimeError):
@@ -105,6 +109,7 @@ class LiveSurveillanceManager:
         self._latest_analysis: FrameAnalysis | None = None
         self._latest_frame_jpeg: bytes | None = None
         self._member_names: dict[int, str] = {}
+        self._capture = None
 
     def start(self, camera_id: int) -> SurveillanceStatusSnapshot:
         with self._lock:
@@ -191,12 +196,15 @@ class LiveSurveillanceManager:
                     "Live surveillance is not running"
                 )
             self._stop_event.set()
+            capture = self._capture
+
+        if capture is not None:
+            try:
+                capture.release()
+            except Exception:
+                pass
 
         thread.join(timeout=self.stop_timeout_seconds)
-        if thread.is_alive():
-            raise SurveillanceStopTimeoutError(
-                "Timed out while stopping live surveillance"
-            )
         return self.status()
 
     def shutdown(self) -> None:
@@ -209,7 +217,11 @@ class LiveSurveillanceManager:
 
     def status(self) -> SurveillanceStatusSnapshot:
         with self._lock:
-            running = self._thread is not None and self._thread.is_alive()
+            running = (
+                self._thread is not None
+                and self._thread.is_alive()
+                and not self._stop_event.is_set()
+            )
             return SurveillanceStatusSnapshot(
                 state=self._state,
                 running=running,
@@ -262,6 +274,8 @@ class LiveSurveillanceManager:
             capture = self.capture_factory(resolve_camera_source(source))
             if not capture.isOpened():
                 raise RuntimeError(f"Could not open camera source: {source}")
+            with self._lock:
+                self._capture = capture
 
             frame_index = 0
             consecutive_failures = 0
@@ -278,6 +292,13 @@ class LiveSurveillanceManager:
 
                 consecutive_failures = 0
                 elapsed = time.perf_counter() - started
+                preview_encoded, preview_buffer = cv2.imencode(".jpg", frame)
+                if preview_encoded:
+                    with self._lock:
+                        self._latest_frame_jpeg = preview_buffer.tobytes()
+                if stop_event.is_set():
+                    break
+
                 analysis = runtime.engine.analyze_frame(
                     frame,
                     frame_index=frame_index,
@@ -306,12 +327,16 @@ class LiveSurveillanceManager:
         except Exception as exc:
             final_state = LiveSurveillanceState.FAILED
             error_message = str(exc)
+            logger.exception("Live surveillance worker failed")
         finally:
             if capture is not None:
                 try:
                     capture.release()
                 except Exception:
                     pass
+                with self._lock:
+                    if self._capture is capture:
+                        self._capture = None
             if runtime is not None:
                 try:
                     runtime.engine.reset()

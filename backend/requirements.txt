@@ -4,7 +4,8 @@ python-multipart==0.0.20
 pydantic==2.11.7
 Pillow==12.2.0
 opencv-python==4.13.0.92
-numpy==2.3.5
+numpy==2.5.1
+scipy==1.18.0
 onnxruntime==1.23.2
 insightface==0.7.3
 ultralytics>=8.3,<9
