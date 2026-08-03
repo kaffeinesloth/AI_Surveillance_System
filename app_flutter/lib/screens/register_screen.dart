@@ -38,7 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       allowMultiple: true,
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-      withData: false,
+      withData: true,
     );
 
     if (result == null) {

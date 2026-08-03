@@ -145,16 +145,20 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['mp4', 'avi', 'mov', 'mkv', 'webm'],
+      withReadStream: true,
     );
     final file = picked?.files.single;
     if (file == null) return;
-    if (file.path == null) {
-      setState(() => _error = 'The selected video has no local file path.');
+    if (file.readStream == null && file.bytes == null && file.path == null) {
+      setState(() => _error = 'The selected video data is not available.');
       return;
     }
     await _guard(() async {
       final status = await _service.submitVideo(
-        path: file.path!,
+        path: file.path,
+        stream: file.readStream,
+        length: file.size,
+        bytes: file.bytes,
         filename: file.name,
       );
       if (!mounted) return;

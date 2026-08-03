@@ -11,7 +11,6 @@ from backend.ai.embedding_manager import (
     InsightFaceEmbeddingManager,
 )
 from backend.ai.face_cropper import CroppedFaceImage, crop_face_image
-from backend.ai.face_detector import FaceDetectionError, FaceDetector
 from backend.ai.image_validator import ImageValidationError, validate_uploaded_image
 from backend.app.config import (
     EMBEDDINGS_DIR,
@@ -39,18 +38,10 @@ class MemberService:
         self,
         connection: sqlite3.Connection,
         *,
-        face_detector: FaceDetector | None = None,
         embedding_manager: InsightFaceEmbeddingManager | None = None,
     ) -> None:
         self.connection = connection
-        self._face_detector = face_detector
         self._embedding_manager = embedding_manager
-
-    @property
-    def face_detector(self) -> FaceDetector:
-        if self._face_detector is None:
-            self._face_detector = FaceDetector()
-        return self._face_detector
 
     @property
     def embedding_manager(self) -> InsightFaceEmbeddingManager:
@@ -87,25 +78,20 @@ class MemberService:
                 continue
 
             try:
-                face_box = self.face_detector.require_single_face(
+                face_embedding = self.embedding_manager.extract_single_face_embedding(
                     validated_image.content,
                     validated_image.filename,
                 )
-                cropped_image = crop_face_image(validated_image.content, face_box)
-                embedding = self.embedding_manager.extract_embedding(
+                cropped_image = crop_face_image(
                     validated_image.content,
-                    validated_image.filename,
+                    face_embedding.face_box,
                 )
                 registration_images.append(
                     RegistrationFaceImage(
                         original_filename=validated_image.filename,
                         cropped_image=cropped_image,
-                        embedding=embedding,
+                        embedding=face_embedding.embedding,
                     )
-                )
-            except FaceDetectionError as exc:
-                rejected_images.append(
-                    RejectedRegistrationImage(filename=filename, reason=str(exc))
                 )
             except EmbeddingExtractionError as exc:
                 rejected_images.append(

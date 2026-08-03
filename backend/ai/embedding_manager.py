@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
@@ -6,12 +7,14 @@ import cv2
 import numpy as np
 from PIL import Image, ImageOps
 
+from backend.ai.face_detector import FaceBox
 from backend.app.config import (
     EMBEDDINGS_DIR,
     FACE_DETECTION_THRESHOLD,
     INSIGHTFACE_DET_SIZE,
     INSIGHTFACE_MODEL_NAME,
     INSIGHTFACE_ROOT,
+    MIN_DETECTED_FACE_SIZE,
     serialize_storage_path,
 )
 
@@ -20,11 +23,24 @@ class EmbeddingExtractionError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class SingleFaceEmbedding:
+    face_box: FaceBox
+    embedding: np.ndarray
+
+
 class InsightFaceEmbeddingManager:
     _app = None
     _lock = Lock()
 
     def extract_embedding(self, image_content: bytes, filename: str) -> np.ndarray:
+        return self.extract_single_face_embedding(image_content, filename).embedding
+
+    def extract_single_face_embedding(
+        self,
+        image_content: bytes,
+        filename: str,
+    ) -> SingleFaceEmbedding:
         app = self._get_app()
         image = self._decode_image(image_content, filename)
         faces = app.get(image)
@@ -43,7 +59,8 @@ class InsightFaceEmbeddingManager:
             raise EmbeddingExtractionError(
                 f"Embedding model returned an empty vector: {filename}"
             )
-        return embedding
+        face_box = self._face_box_from_embedding_face(faces[0], filename)
+        return SingleFaceEmbedding(face_box=face_box, embedding=embedding)
 
     def save_embedding(self, embedding: np.ndarray, target_path: Path) -> str:
         target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -114,3 +131,24 @@ class InsightFaceEmbeddingManager:
 
         rgb_array = np.asarray(image)
         return cv2.cvtColor(rgb_array, cv2.COLOR_RGB2BGR)
+
+    @staticmethod
+    def _face_box_from_embedding_face(face, filename: str) -> FaceBox:
+        bbox = np.asarray(face.bbox, dtype=np.float32)
+        if bbox.size < 4:
+            raise EmbeddingExtractionError(
+                f"Embedding model returned an invalid face box: {filename}"
+            )
+
+        x1, y1, x2, y2 = bbox[:4]
+        width = int(round(float(x2 - x1)))
+        height = int(round(float(y2 - y1)))
+        if width < MIN_DETECTED_FACE_SIZE or height < MIN_DETECTED_FACE_SIZE:
+            raise EmbeddingExtractionError(f"Detected face is too small: {filename}")
+
+        return FaceBox(
+            x=max(int(round(float(x1))), 0),
+            y=max(int(round(float(y1))), 0),
+            width=width,
+            height=height,
+        )
