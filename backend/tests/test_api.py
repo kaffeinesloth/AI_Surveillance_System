@@ -2,11 +2,16 @@ import asyncio
 import sqlite3
 import tempfile
 import unittest
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 from fastapi.testclient import TestClient
+from PIL import Image
 
+from backend.ai.embedding_manager import SingleFaceEmbedding
+from backend.ai.face_detector import FaceBox
 from backend.app.database import create_schema
 from backend.main import create_app
 from backend.routes.member_routes import get_member_service
@@ -48,6 +53,40 @@ class FakeMemberService:
 
     def delete_member(self, member_id):
         return self.deleted
+
+
+class FakeEmbeddingManager:
+    def extract_single_face_embedding(self, image_content, filename):
+        return SingleFaceEmbedding(
+            face_box=FaceBox(x=30, y=30, width=100, height=100),
+            embedding=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        )
+
+    def save_embedding(self, embedding, target_path):
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(target_path, embedding)
+        return str(target_path)
+
+
+class FakeUpload:
+    def __init__(self, filename: str, content: bytes):
+        self.filename = filename
+        self._content = content
+
+    async def read(self):
+        return self._content
+
+    async def close(self):
+        return None
+
+
+def make_jpeg_bytes(width: int = 180, height: int = 180) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (width, height), color=(120, 120, 120)).save(
+        output,
+        format="JPEG",
+    )
+    return output.getvalue()
 
 
 class ApiTestCase(unittest.TestCase):
@@ -188,8 +227,39 @@ class ApiTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Person name is required"):
             asyncio.run(service.register_member(" ", []))
 
-        self.assertIsNone(service._face_detector)
         self.assertIsNone(service._embedding_manager)
+
+    def test_register_member_uses_embedding_face_box_without_opencv_cascade(self):
+        connection = make_connection()
+        self.addCleanup(connection.close)
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            known_faces_dir = Path(temporary_directory) / "known_faces"
+            embeddings_dir = Path(temporary_directory) / "embeddings"
+            service = MemberService(
+                connection,
+                embedding_manager=FakeEmbeddingManager(),
+            )
+            with (
+                patch(
+                    "backend.services.member_service.KNOWN_FACES_DIR",
+                    known_faces_dir,
+                ),
+                patch(
+                    "backend.services.member_service.EMBEDDINGS_DIR",
+                    embeddings_dir,
+                ),
+            ):
+                result = asyncio.run(
+                    service.register_member(
+                        "Registered Member",
+                        [FakeUpload("face.jpg", make_jpeg_bytes())],
+                    )
+                )
+
+        self.assertEqual(result["member"]["name"], "Registered Member")
+        self.assertEqual(len(result["accepted_images"]), 1)
+        self.assertEqual(result["rejected_images"], [])
 
 
 if __name__ == "__main__":

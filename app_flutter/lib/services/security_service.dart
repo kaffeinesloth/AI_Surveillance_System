@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -92,13 +93,33 @@ class SecurityService {
   }
 
   Future<VideoAnalysisStatusModel> submitVideo({
-    required String path,
+    String? path,
+    Stream<List<int>>? stream,
+    int? length,
+    Uint8List? bytes,
     required String filename,
   }) async {
     final request = http.MultipartRequest('POST', _uri('/video-analysis'));
-    request.files.add(
-      await http.MultipartFile.fromPath('file', path, filename: filename),
-    );
+    if (stream != null && length != null) {
+      request.files.add(
+        http.MultipartFile(
+          'file',
+          http.ByteStream(stream),
+          length,
+          filename: filename,
+        ),
+      );
+    } else if (bytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: filename),
+      );
+    } else if (path != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath('file', path, filename: filename),
+      );
+    } else {
+      throw const ApiException('Selected video data is not available.');
+    }
     final streamed = await _client.send(request);
     final response = await http.Response.fromStream(streamed);
     _ensureSuccess(response);

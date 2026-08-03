@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:app_flutter/services/security_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -59,6 +61,78 @@ void main() {
     expect(results.persistent, isFalse);
     expect(results.knownEvents, 1);
     expect(results.events.single.memberName, 'Tuan');
+  });
+
+  test('submitVideo uploads byte-backed picked videos', () async {
+    late http.Request capturedRequest;
+    final client = MockClient((request) async {
+      capturedRequest = request;
+      return http.Response(
+        '{"job_id":"job-1","filename":"demo.mp4","state":"queued",'
+        '"persistent":true,"processed_frames":0,"total_frames":null,'
+        '"progress":null,"processing_fps":0.0,"error_message":null}',
+        200,
+      );
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final status = await service.submitVideo(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      filename: 'demo.mp4',
+    );
+
+    expect(status.jobId, 'job-1');
+    expect(capturedRequest.method, 'POST');
+    expect(capturedRequest.url.path, '/video-analysis');
+    expect(
+      capturedRequest.headers['content-type'],
+      contains('multipart/form-data'),
+    );
+    expect(
+      String.fromCharCodes(capturedRequest.bodyBytes),
+      contains('demo.mp4'),
+    );
+  });
+
+  test('submitVideo uploads stream-backed picked videos', () async {
+    late http.Request capturedRequest;
+    final client = MockClient((request) async {
+      capturedRequest = request;
+      return http.Response(
+        '{"job_id":"job-2","filename":"stream.mp4","state":"queued",'
+        '"persistent":true,"processed_frames":0,"total_frames":null,'
+        '"progress":null,"processing_fps":0.0,"error_message":null}',
+        200,
+      );
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final status = await service.submitVideo(
+      stream: Stream<List<int>>.fromIterable([
+        [1, 2],
+        [3],
+      ]),
+      length: 3,
+      filename: 'stream.mp4',
+    );
+
+    expect(status.jobId, 'job-2');
+    expect(capturedRequest.method, 'POST');
+    expect(capturedRequest.url.path, '/video-analysis');
+    expect(
+      capturedRequest.headers['content-type'],
+      contains('multipart/form-data'),
+    );
+    expect(
+      String.fromCharCodes(capturedRequest.bodyBytes),
+      contains('stream.mp4'),
+    );
   });
 
   test('backend detail becomes an ApiException', () async {

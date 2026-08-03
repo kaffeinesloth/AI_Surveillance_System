@@ -13,7 +13,9 @@ class MemberService {
 
   Future<List<MemberModel>> listMembers() async {
     final client = _client ?? http.Client();
-    final response = await client.get(Uri.parse('${ApiConfig.baseUrl}/members'));
+    final response = await client.get(
+      Uri.parse('${ApiConfig.baseUrl}/members'),
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = _extractErrorMessage(response.body);
@@ -37,15 +39,20 @@ class MemberService {
     )..fields['name'] = name;
 
     for (final image in images) {
-      if (image.path == null) {
-        throw Exception('Image path is not available for ${image.name}.');
+      final bytes = image.bytes;
+      if (bytes != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes('images', bytes, filename: image.name),
+        );
+        continue;
+      }
+
+      final path = image.path;
+      if (path == null) {
+        throw Exception('Image data is not available for ${image.name}.');
       }
       request.files.add(
-        await http.MultipartFile.fromPath(
-          'images',
-          image.path!,
-          filename: image.name,
-        ),
+        await http.MultipartFile.fromPath('images', path, filename: image.name),
       );
     }
 
@@ -79,6 +86,23 @@ class MemberService {
       final detail = json['detail'];
       if (detail is String && detail.isNotEmpty) {
         return detail;
+      }
+      if (detail is List && detail.isNotEmpty) {
+        return detail
+            .map((item) {
+              if (item is Map<String, dynamic>) {
+                final message = item['msg'];
+                final location = item['loc'];
+                if (message is String && location is List) {
+                  return '${location.join('.')}: $message';
+                }
+                if (message is String) {
+                  return message;
+                }
+              }
+              return item.toString();
+            })
+            .join('\n');
       }
     } catch (_) {
       // Fall through to the generic message below.
