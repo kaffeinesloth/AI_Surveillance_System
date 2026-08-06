@@ -8,12 +8,12 @@ class CameraModel {
   });
 
   factory CameraModel.fromJson(Map<String, dynamic> json) => CameraModel(
-    id: json['id'] as int,
-    name: json['name'] as String,
-    source: json['source'] as String,
-    location: json['location'] as String?,
-    isActive: json['is_active'] as bool,
-  );
+        id: json['id'] as int,
+        name: json['name'] as String,
+        source: json['source'] as String,
+        location: json['location'] as String?,
+        isActive: json['is_active'] as bool,
+      );
 
   final int id;
   final String name;
@@ -238,14 +238,14 @@ class AlertModel {
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> json) => AlertModel(
-    id: json['id'] as int,
-    alertType: json['alert_type'] as String,
-    message: json['message'] as String,
-    cameraName: json['camera_name'] as String,
-    isRead: json['is_read'] as bool,
-    createdAt: json['created_at'] as String,
-    snapshotUrl: json['snapshot_url'] as String?,
-  );
+        id: json['id'] as int,
+        alertType: json['alert_type'] as String,
+        message: json['message'] as String,
+        cameraName: json['camera_name'] as String,
+        isRead: json['is_read'] as bool,
+        createdAt: json['created_at'] as String,
+        snapshotUrl: json['snapshot_url'] as String?,
+      );
 
   final int id;
   final String alertType;

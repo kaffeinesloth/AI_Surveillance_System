@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tokens.dart';
+
 class HeaderBlock extends StatelessWidget {
   const HeaderBlock({
     super.key,
@@ -18,7 +20,7 @@ class HeaderBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -26,12 +28,12 @@ class HeaderBlock extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFE0F2F1),
-                borderRadius: BorderRadius.circular(8),
+                color: AppColors.tealSoft,
+                borderRadius: BorderRadius.circular(AppRadii.sm),
               ),
-              child: Icon(icon, color: const Color(0xFF0F766E)),
+              child: Icon(icon, color: AppColors.teal),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,22 +41,25 @@ class HeaderBlock extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF111827),
-                    ),
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF6B7280),
-                      height: 1.35,
-                    ),
+                          color: AppColors.textMuted,
+                          height: 1.35,
+                        ),
                   ),
                 ],
               ),
             ),
-            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            if (trailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              trailing!,
+            ],
           ],
         ),
       ),

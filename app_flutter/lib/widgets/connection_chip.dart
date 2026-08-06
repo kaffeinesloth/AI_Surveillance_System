@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../core/api_config.dart';
+import '../theme/app_tokens.dart';
 
 class ConnectionChip extends StatefulWidget {
   const ConnectionChip({super.key});
@@ -49,17 +50,19 @@ class _ConnectionChipState extends State<ConnectionChip> {
   Widget build(BuildContext context) {
     final isOnline = _isOnline == true;
     final isChecking = _isOnline == null;
-    final label = isChecking ? 'Checking' : (isOnline ? 'Online' : 'Offline');
+    final label = isChecking
+        ? 'Backend checking'
+        : (isOnline ? 'Backend online' : 'Backend offline');
     final color = isChecking
-        ? const Color(0xFF9CA3AF)
-        : (isOnline ? const Color(0xFF0F766E) : const Color(0xFFB91C1C));
+        ? AppColors.textSubtle
+        : (isOnline ? AppColors.teal : AppColors.danger);
 
     return Chip(
       avatar: Icon(Icons.circle, size: 12, color: color),
       label: Text(label),
       visualDensity: VisualDensity.compact,
-      side: const BorderSide(color: Color(0xFFE5E7EB)),
-      backgroundColor: Colors.white,
+      side: const BorderSide(color: AppColors.border),
+      backgroundColor: AppColors.surface,
       labelStyle: TextStyle(fontWeight: FontWeight.w700, color: color),
     );
   }

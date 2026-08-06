@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tokens.dart';
+
 class EmptyPanel extends StatelessWidget {
   const EmptyPanel({
     super.key,
@@ -7,22 +9,24 @@ class EmptyPanel extends StatelessWidget {
     required this.title,
     required this.message,
     this.compact = false,
+    this.action,
   });
 
   final IconData icon;
   final String title;
   final String message;
   final bool compact;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 20),
+        padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xl),
         child: Column(
           children: [
-            Icon(icon, size: compact ? 32 : 40, color: const Color(0xFF9CA3AF)),
-            const SizedBox(height: 10),
+            Icon(icon, size: compact ? 32 : 40, color: AppColors.textSubtle),
+            const SizedBox(height: AppSpacing.md),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -30,15 +34,19 @@ class EmptyPanel extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF6B7280),
+                    color: AppColors.textMuted,
                     height: 1.35,
                   ),
             ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              action!,
+            ],
           ],
         ),
       ),

@@ -1,23 +1,48 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_tokens.dart';
+
 class AppPage extends StatelessWidget {
-  const AppPage({super.key, required this.children});
+  const AppPage({
+    super.key,
+    required this.children,
+    this.maxWidth = AppLayout.pageMaxWidth,
+  });
 
   final List<Widget> children;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 980),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontalPadding = constraints.maxWidth >= AppBreakpoints.desktop
+            ? AppSpacing.xxl
+            : AppSpacing.lg;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            constraints.maxWidth >= AppBreakpoints.desktop
+                ? AppSpacing.xxl
+                : AppSpacing.lg,
+            horizontalPadding,
+            AppSpacing.xxl,
           ),
-        ),
-      ),
+          child: Align(
+            alignment: constraints.maxWidth >= AppBreakpoints.desktop
+                ? Alignment.topLeft
+                : Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
