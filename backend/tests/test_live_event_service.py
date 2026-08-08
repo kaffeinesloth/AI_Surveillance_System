@@ -115,7 +115,7 @@ class LiveEventRecorderTestCase(unittest.TestCase):
         self.assertIsNone(row["snapshot_path"])
         self.assertEqual(list(self.snapshots_dir.iterdir()), [])
 
-    def test_unknown_requires_confirmation_and_obeys_cooldown(self):
+    def test_unknown_requires_confirmation_and_alerts_once_per_visible_track(self):
         recorder = self.recorder(confirmation=3, cooldown=10)
         unknown = make_track()
 
@@ -135,16 +135,28 @@ class LiveEventRecorderTestCase(unittest.TestCase):
             make_analysis(3, 5.0, unknown),
             b"jpeg-3",
         )
-        second = recorder.process(
+        repeated_after_cooldown = recorder.process(
             make_analysis(4, 12.0, unknown),
             b"jpeg-4",
         )
 
         self.assertEqual(len(first), 1)
         self.assertEqual(within_cooldown, [])
+        self.assertEqual(repeated_after_cooldown, [])
+        self.assertEqual(self.counts(), (1, 1))
+        self.assertEqual(len(list(self.snapshots_dir.glob("*.jpg"))), 1)
+
+    def test_unknown_track_can_alert_again_after_it_disappears(self):
+        recorder = self.recorder(confirmation=1, cooldown=3)
+        unknown = make_track()
+
+        first = recorder.process(make_analysis(0, 0.0, unknown), b"jpeg-0")
+        recorder.process(make_analysis(1, 1.0), b"jpeg-1")
+        second = recorder.process(make_analysis(2, 4.0, unknown), b"jpeg-2")
+
+        self.assertEqual(len(first), 1)
         self.assertEqual(len(second), 1)
         self.assertEqual(self.counts(), (2, 2))
-        self.assertEqual(len(list(self.snapshots_dir.glob("*.jpg"))), 2)
 
     def test_low_quality_frame_does_not_increment_unknown_streak(self):
         recorder = self.recorder(confirmation=3)

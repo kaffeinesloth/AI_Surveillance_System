@@ -20,49 +20,60 @@ class _MainShellState extends State<MainShell> {
   int _membersRefreshToken = 0;
 
   List<_NavPage> get _pages => [
-        _NavPage(
-          title: 'Dashboard',
-          icon: Icons.dashboard_outlined,
-          selectedIcon: Icons.dashboard,
-          child: DashboardScreen(
-            onStartSurveillance: () => _selectPage(3),
-            onRegisterPerson: () => _selectPage(2),
-            onViewLogs: () => _selectPage(4),
-          ),
-        ),
-        _NavPage(
-          title: 'Members',
-          icon: Icons.people_alt_outlined,
-          selectedIcon: Icons.people_alt,
-          child: MembersScreen(refreshToken: _membersRefreshToken),
-        ),
-        const _NavPage(
-          title: 'Register',
-          icon: Icons.person_add_alt_1_outlined,
-          selectedIcon: Icons.person_add_alt_1,
-          child: RegisterScreen(),
-        ),
-        const _NavPage(
-          title: 'Surveillance',
-          icon: Icons.videocam_outlined,
-          selectedIcon: Icons.videocam,
-          child: SurveillanceScreen(),
-        ),
-        const _NavPage(
-          title: 'Logs',
-          icon: Icons.receipt_long_outlined,
-          selectedIcon: Icons.receipt_long,
-          child: LogsScreen(),
-        ),
-      ];
+    _NavPage(
+      title: 'Dashboard',
+      icon: Icons.dashboard_outlined,
+      selectedIcon: Icons.dashboard,
+      child: DashboardScreen(
+        onStartSurveillance: () => _selectPage(3),
+        onRegisterPerson: () => _selectPage(2),
+        onViewLogs: () => _selectPage(4),
+      ),
+    ),
+    _NavPage(
+      title: 'Members',
+      icon: Icons.people_alt_outlined,
+      selectedIcon: Icons.people_alt,
+      child: MembersScreen(
+        refreshToken: _membersRefreshToken,
+        onMembersChanged: _notifyMembersChanged,
+      ),
+    ),
+    _NavPage(
+      title: 'Register',
+      icon: Icons.person_add_alt_1_outlined,
+      selectedIcon: Icons.person_add_alt_1,
+      child: RegisterScreen(
+        refreshToken: _membersRefreshToken,
+        onMembersChanged: _notifyMembersChanged,
+      ),
+    ),
+    const _NavPage(
+      title: 'Surveillance',
+      icon: Icons.videocam_outlined,
+      selectedIcon: Icons.videocam,
+      child: SurveillanceScreen(),
+    ),
+    const _NavPage(
+      title: 'Logs',
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long,
+      child: LogsScreen(),
+    ),
+  ];
 
   void _selectPage(int index) {
     setState(() {
       _selectedIndex = index;
-      if (_pages[index].title == 'Members') {
+      final selectedTitle = _pages[index].title;
+      if (selectedTitle == 'Members' || selectedTitle == 'Register') {
         _membersRefreshToken++;
       }
     });
+  }
+
+  void _notifyMembersChanged() {
+    setState(() => _membersRefreshToken++);
   }
 
   @override
@@ -164,9 +175,9 @@ class _DesktopSidebar extends StatelessWidget {
                     child: Text(
                       'AI Face Security',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.text,
-                          ),
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.text,
+                      ),
                     ),
                   ),
                 ],
@@ -225,10 +236,9 @@ class _SidebarDestination extends StatelessWidget {
                 child: Text(
                   page.title,
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                        fontWeight:
-                            selected ? FontWeight.w900 : FontWeight.w700,
-                      ),
+                    color: color,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                  ),
                 ),
               ),
             ],

@@ -16,7 +16,7 @@ from backend.app.config import (
 )
 from backend.app.database import get_connection
 from backend.app.models import LiveSurveillanceState
-from backend.camera.webcam import resolve_camera_source
+from backend.camera.webcam import open_camera_capture, resolve_camera_source
 from backend.services.gallery_service import (
     AnalysisRuntime,
     build_analysis_runtime,
@@ -271,7 +271,10 @@ class LiveSurveillanceManager:
                 session_id,
                 camera_id,
             )
-            capture = self.capture_factory(resolve_camera_source(source))
+            capture = open_camera_capture(
+                resolve_camera_source(source),
+                capture_factory=self.capture_factory,
+            )
             if not capture.isOpened():
                 raise RuntimeError(f"Could not open camera source: {source}")
             with self._lock:

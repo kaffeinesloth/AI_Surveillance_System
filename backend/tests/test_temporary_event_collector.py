@@ -9,7 +9,7 @@ from backend.app.models import DetectionStatus
 from backend.services.temporary_event_collector import TemporaryEventCollector
 
 
-def analysis(frame_index, timestamp, status, member_id=None):
+def analysis(frame_index, timestamp, status, member_id=None, track_id=1):
     return FrameAnalysis(
         frame_index=frame_index,
         timestamp_seconds=timestamp,
@@ -17,7 +17,7 @@ def analysis(frame_index, timestamp, status, member_id=None):
         height=20,
         tracks=(
             TrackAnalysis(
-                track_id=1,
+                track_id=track_id,
                 bounding_box=BoundingBox(1, 1, 10, 10),
                 person_confidence=0.9,
                 status=status,
@@ -48,7 +48,57 @@ class TemporaryEventCollectorTestCase(unittest.TestCase):
         self.assertEqual(duplicate, [])
         self.assertEqual(collector.total_known_events, 1)
 
-    def test_unknown_confirmation_and_cooldown_are_temporary(self):
+    def test_known_member_is_not_counted_again_after_unknown_flip(self):
+        collector = TemporaryEventCollector(
+            member_names={7: "Known Member"},
+            unknown_confirmation_frames=1,
+        )
+
+        first_unknown = collector.process(
+            analysis(0, 0.0, DetectionStatus.UNKNOWN)
+        )
+        first_known = collector.process(
+            analysis(1, 1.0, DetectionStatus.KNOWN, 7)
+        )
+        repeated_unknown = collector.process(
+            analysis(2, 2.0, DetectionStatus.UNKNOWN)
+        )
+        repeated_known = collector.process(
+            analysis(3, 3.0, DetectionStatus.KNOWN, 7)
+        )
+
+        self.assertEqual(len(first_unknown), 1)
+        self.assertEqual(len(first_known), 1)
+        self.assertEqual(repeated_unknown, [])
+        self.assertEqual(repeated_known, [])
+        self.assertEqual([event["status"] for event in collector.events], [
+            DetectionStatus.KNOWN,
+        ])
+        self.assertEqual(collector.total_known_events, 1)
+        self.assertEqual(collector.total_unknown_events, 0)
+
+    def test_known_summary_counts_unique_registered_identities(self):
+        collector = TemporaryEventCollector(
+            member_names={7: "Known Member", 8: "Other Member"},
+            unknown_confirmation_frames=1,
+        )
+
+        first_track = collector.process(
+            analysis(0, 0.0, DetectionStatus.KNOWN, 7, track_id=1)
+        )
+        same_member_new_track = collector.process(
+            analysis(1, 1.0, DetectionStatus.KNOWN, 7, track_id=2)
+        )
+        different_member = collector.process(
+            analysis(2, 2.0, DetectionStatus.KNOWN, 8, track_id=3)
+        )
+
+        self.assertEqual(len(first_track), 1)
+        self.assertEqual(len(same_member_new_track), 1)
+        self.assertEqual(len(different_member), 1)
+        self.assertEqual(collector.total_known_events, 2)
+
+    def test_unknown_confirmation_alerts_once_per_visible_track(self):
         collector = TemporaryEventCollector(
             member_names={},
             unknown_confirmation_frames=2,
@@ -65,17 +115,65 @@ class TemporaryEventCollectorTestCase(unittest.TestCase):
         within_cooldown = collector.process(
             analysis(2, 3.0, DetectionStatus.UNKNOWN)
         )
-        second = collector.process(
+        repeated_after_cooldown = collector.process(
             analysis(3, 6.0, DetectionStatus.UNKNOWN)
         )
 
         self.assertEqual(len(first), 1)
         self.assertEqual(first[0]["event_type"], "unknown_person")
         self.assertEqual(within_cooldown, [])
+        self.assertEqual(repeated_after_cooldown, [])
+        self.assertEqual(collector.total_unknown_events, 1)
+
+    def test_unknown_track_can_emit_again_after_it_disappears(self):
+        collector = TemporaryEventCollector(
+            member_names={},
+            unknown_confirmation_frames=1,
+            unknown_cooldown_seconds=3,
+        )
+
+        first = collector.process(
+            analysis(0, 0.0, DetectionStatus.UNKNOWN)
+        )
+        collector.process(
+            FrameAnalysis(
+                frame_index=1,
+                timestamp_seconds=1.0,
+                width=20,
+                height=20,
+                tracks=(),
+            )
+        )
+        second = collector.process(
+            analysis(2, 4.0, DetectionStatus.UNKNOWN)
+        )
+
+        self.assertEqual(len(first), 1)
         self.assertEqual(len(second), 1)
         self.assertEqual(collector.total_unknown_events, 2)
 
-    def test_event_list_is_bounded(self):
+    def test_event_list_is_unbounded_by_default(self):
+        collector = TemporaryEventCollector(
+            member_names={},
+            unknown_confirmation_frames=1,
+            unknown_cooldown_seconds=0,
+        )
+
+        for index in range(4):
+            collector.process(
+                analysis(
+                    index,
+                    float(index),
+                    DetectionStatus.UNKNOWN,
+                    track_id=index + 1,
+                )
+            )
+
+        self.assertEqual(len(collector.events), 4)
+        self.assertFalse(collector.events_truncated)
+        self.assertEqual(collector.total_unknown_events, 4)
+
+    def test_event_list_can_be_bounded_with_explicit_limit(self):
         collector = TemporaryEventCollector(
             member_names={},
             unknown_confirmation_frames=1,
@@ -85,12 +183,17 @@ class TemporaryEventCollectorTestCase(unittest.TestCase):
 
         for index in range(4):
             collector.process(
-                analysis(index, float(index), DetectionStatus.UNKNOWN)
+                analysis(
+                    index,
+                    float(index),
+                    DetectionStatus.UNKNOWN,
+                    track_id=index + 1,
+                )
             )
 
         self.assertEqual(len(collector.events), 2)
         self.assertTrue(collector.events_truncated)
-        self.assertEqual(collector.total_unknown_events, 4)
+        self.assertEqual(collector.total_unknown_events, 2)
 
 
 if __name__ == "__main__":

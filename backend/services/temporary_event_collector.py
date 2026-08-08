@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from backend.ai.contracts import FrameAnalysis
 from backend.app.config import (
@@ -14,6 +14,10 @@ class _TemporaryTrackState:
     unknown_streak: int = 0
     last_log_key: tuple[str, int | None] | None = None
     last_unknown_event_at: float | None = None
+    last_seen_at: float | None = None
+    unknown_event_recorded: bool = False
+    recorded_member_ids: set[int] = field(default_factory=set)
+    unknown_event: dict | None = None
 
 
 class TemporaryEventCollector:
@@ -29,34 +33,64 @@ class TemporaryEventCollector:
             raise ValueError("Unknown confirmation frames must be positive")
         if unknown_cooldown_seconds < 0:
             raise ValueError("Unknown cooldown cannot be negative")
-        if max_events <= 0:
-            raise ValueError("Maximum temporary events must be positive")
+        if max_events < 0:
+            raise ValueError(
+                "Maximum temporary events cannot be negative"
+            )
         self.member_names = member_names
         self.unknown_confirmation_frames = unknown_confirmation_frames
         self.unknown_cooldown_seconds = unknown_cooldown_seconds
+        self.track_state_ttl_seconds = max(unknown_cooldown_seconds, 1.0)
         self.max_events = max_events
         self.events: list[dict] = []
-        self.total_known_events = 0
-        self.total_unknown_events = 0
+        self.known_member_ids: set[int] = set()
         self.events_truncated = False
         self._track_states: dict[int, _TemporaryTrackState] = {}
 
+    @property
+    def total_known_events(self) -> int:
+        return len(self.known_member_ids)
+
+    @property
+    def total_unknown_events(self) -> int:
+        return sum(
+            1
+            for event in self.events
+            if event["status"] is DetectionStatus.UNKNOWN
+        )
+
     def process(self, analysis: FrameAnalysis) -> list[dict]:
         new_events = []
+        stale_track_ids = [
+            track_id
+            for track_id, state in self._track_states.items()
+            if state.last_seen_at is not None
+            and analysis.timestamp_seconds - state.last_seen_at
+            >= self.track_state_ttl_seconds
+        ]
+        for track_id in stale_track_ids:
+            self._track_states.pop(track_id, None)
+
         for track in analysis.tracks:
             state = self._track_states.setdefault(
                 track.track_id,
                 _TemporaryTrackState(),
             )
+            state.last_seen_at = analysis.timestamp_seconds
             if (
                 track.status is DetectionStatus.KNOWN
                 and track.member_id is not None
             ):
                 state.unknown_streak = 0
                 key = (DetectionStatus.KNOWN.value, track.member_id)
-                if state.last_log_key == key:
+                if track.member_id in state.recorded_member_ids:
                     continue
                 state.last_log_key = key
+                state.recorded_member_ids.add(track.member_id)
+                self.known_member_ids.add(track.member_id)
+                if state.unknown_event is not None:
+                    self._remove_event(state.unknown_event)
+                    state.unknown_event = None
                 event = self._event(
                     analysis,
                     track.track_id,
@@ -65,7 +99,6 @@ class TemporaryEventCollector:
                     track.similarity,
                     "detection",
                 )
-                self.total_known_events += 1
                 new_events.append(event)
                 continue
 
@@ -73,16 +106,11 @@ class TemporaryEventCollector:
                 state.unknown_streak += 1
                 if state.unknown_streak < self.unknown_confirmation_frames:
                     continue
-                event_due = (
-                    state.last_unknown_event_at is None
-                    or analysis.timestamp_seconds
-                    - state.last_unknown_event_at
-                    >= self.unknown_cooldown_seconds
-                )
-                if not event_due:
+                if state.unknown_event_recorded:
                     continue
                 state.last_log_key = (DetectionStatus.UNKNOWN.value, None)
                 state.last_unknown_event_at = analysis.timestamp_seconds
+                state.unknown_event_recorded = True
                 event = self._event(
                     analysis,
                     track.track_id,
@@ -91,15 +119,21 @@ class TemporaryEventCollector:
                     track.similarity,
                     "unknown_person",
                 )
-                self.total_unknown_events += 1
+                state.unknown_event = event
                 new_events.append(event)
 
         self.events.extend(new_events)
-        if len(self.events) > self.max_events:
+        if self.max_events > 0 and len(self.events) > self.max_events:
             overflow = len(self.events) - self.max_events
             del self.events[:overflow]
             self.events_truncated = True
         return new_events
+
+    def _remove_event(self, event: dict) -> None:
+        try:
+            self.events.remove(event)
+        except ValueError:
+            pass
 
     def _event(
         self,

@@ -15,9 +15,11 @@ class MembersScreen extends StatefulWidget {
   const MembersScreen({
     super.key,
     required this.refreshToken,
+    required this.onMembersChanged,
   });
 
   final int refreshToken;
+  final VoidCallback onMembersChanged;
 
   @override
   State<MembersScreen> createState() => _MembersScreenState();
@@ -61,7 +63,9 @@ class _MembersScreenState extends State<MembersScreen> {
   }
 
   void _refreshMembers() {
-    setState(() => _membersFuture = _memberService.listMembers());
+    setState(() {
+      _membersFuture = _memberService.listMembers();
+    });
   }
 
   void _clearSearch() {
@@ -103,8 +107,9 @@ class _MembersScreenState extends State<MembersScreen> {
 
             if (snapshot.hasError) {
               return _MembersErrorState(
-                message:
-                    friendlyErrorMessage(snapshot.error ?? 'Unknown error'),
+                message: friendlyErrorMessage(
+                  snapshot.error ?? 'Unknown error',
+                ),
                 onRetry: _refreshMembers,
               );
             }
@@ -200,6 +205,7 @@ class _MembersScreenState extends State<MembersScreen> {
       await _memberService.deleteMember(member.id);
       if (!mounted) return;
       _refreshMembers();
+      widget.onMembersChanged();
       showAppSnackBar(
         context,
         message: 'Deleted ${member.name}.',
@@ -439,10 +445,7 @@ class _MemberCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   metadata,
                   const SizedBox(height: AppSpacing.sm),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: deleteButton,
-                  ),
+                  Align(alignment: Alignment.centerRight, child: deleteButton),
                 ],
               );
             }
@@ -531,10 +534,7 @@ class _LoadingMemberRow extends StatelessWidget {
 }
 
 class _MembersErrorState extends StatelessWidget {
-  const _MembersErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _MembersErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;

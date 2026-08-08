@@ -11,7 +11,14 @@ import '../widgets/header_block.dart';
 import '../widgets/status_badge.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({
+    super.key,
+    required this.refreshToken,
+    required this.onMembersChanged,
+  });
+
+  final int refreshToken;
+  final VoidCallback onMembersChanged;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -37,6 +44,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.initState();
     _membersFuture = _memberService.listMembers();
     _nameController.addListener(_onFormChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant RegisterScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      _refreshMembers();
+    }
   }
 
   @override
@@ -94,7 +109,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _refreshMembers() {
-    setState(() => _membersFuture = _memberService.listMembers());
+    setState(() {
+      _membersFuture = _memberService.listMembers();
+    });
   }
 
   Future<void> _registerMember() async {
@@ -128,6 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _formError = null;
         _hasSubmitted = false;
       });
+      widget.onMembersChanged();
       _showMessage(result.message);
     } catch (error) {
       if (!mounted) return;
@@ -190,6 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _memberService.deleteMember(member.id);
       if (!mounted) return;
       _refreshMembers();
+      widget.onMembersChanged();
       _showMessage('Deleted ${member.name}.');
     } catch (error) {
       if (!mounted) return;
@@ -208,9 +227,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             Text(
               'Person details',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.text,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             TextField(
@@ -256,9 +275,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? 'Ready to submit ${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'}.'
                   : 'A name and at least one face image are required.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -332,8 +351,8 @@ class _RegisteredPeoplePanel extends StatelessWidget {
                   child: Text(
                     'Registered people',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 IconButton.filledTonal(
@@ -356,8 +375,9 @@ class _RegisteredPeoplePanel extends StatelessWidget {
 
                 if (snapshot.hasError) {
                   return _InlineErrorPanel(
-                    message:
-                        friendlyErrorMessage(snapshot.error ?? 'Unknown error'),
+                    message: friendlyErrorMessage(
+                      snapshot.error ?? 'Unknown error',
+                    ),
                     onRetry: onRefresh,
                   );
                 }
@@ -390,10 +410,7 @@ class _RegisteredPeoplePanel extends StatelessWidget {
 }
 
 class _CompactMemberTile extends StatelessWidget {
-  const _CompactMemberTile({
-    required this.member,
-    required this.onDelete,
-  });
+  const _CompactMemberTile({required this.member, required this.onDelete});
 
   final MemberModel member;
   final VoidCallback onDelete;
@@ -472,9 +489,9 @@ class _InlineEmptyPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'No registered people',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -484,10 +501,7 @@ class _InlineEmptyPanel extends StatelessWidget {
 }
 
 class _InlineErrorPanel extends StatelessWidget {
-  const _InlineErrorPanel({
-    required this.message,
-    required this.onRetry,
-  });
+  const _InlineErrorPanel({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -506,9 +520,9 @@ class _InlineErrorPanel extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.danger,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.danger),
               ),
             ),
             IconButton(
@@ -629,10 +643,7 @@ class _RejectedImageReason extends StatelessWidget {
 }
 
 class _FormFeedbackPanel extends StatelessWidget {
-  const _FormFeedbackPanel({
-    required this.message,
-    required this.isError,
-  });
+  const _FormFeedbackPanel({required this.message, required this.isError});
 
   final String message;
   final bool isError;
@@ -661,9 +672,9 @@ class _FormFeedbackPanel extends StatelessWidget {
               child: Text(
                 message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -778,8 +789,8 @@ class _ImagePickerPanel extends StatelessWidget {
                 builder: (context, constraints) {
                   final tileWidth =
                       constraints.maxWidth >= AppBreakpoints.compact
-                          ? 142.0
-                          : 118.0;
+                      ? 142.0
+                      : 118.0;
                   return Wrap(
                     spacing: AppSpacing.md,
                     runSpacing: AppSpacing.md,
@@ -844,17 +855,17 @@ class _NoImagesSelectedHint extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               'No images selected',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Choose at least one face image before registering.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -881,11 +892,7 @@ class _SelectedImageTile extends StatelessWidget {
             color: AppColors.tealSoft,
             child: const Icon(Icons.image_outlined, color: AppColors.teal),
           )
-        : Image.memory(
-            image.bytes!,
-            fit: BoxFit.cover,
-            gaplessPlayback: true,
-          );
+        : Image.memory(image.bytes!, fit: BoxFit.cover, gaplessPlayback: true);
 
     return SizedBox(
       width: width,
@@ -925,15 +932,15 @@ class _SelectedImageTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       _formatBytes(image.size),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.textMuted,
-                          ),
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),

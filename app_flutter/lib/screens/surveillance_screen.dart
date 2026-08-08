@@ -64,7 +64,8 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       setState(() {
         _cameras = cameras;
         _liveStatus = status;
-        _selectedCameraId = status.cameraId ??
+        _selectedCameraId =
+            status.cameraId ??
             _selectedCameraId ??
             (cameras.isEmpty ? null : cameras.first.id);
       });
@@ -293,27 +294,27 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
           trailing: StatusBadge(
             label: showLive
                 ? running
-                    ? 'Live'
-                    : failed
-                        ? 'Camera failed'
-                        : 'Stopped'
+                      ? 'Live'
+                      : failed
+                      ? 'Camera failed'
+                      : 'Stopped'
                 : _videoStatus?.state ?? 'Upload mode',
             icon: showLive
                 ? running
-                    ? Icons.visibility
-                    : failed
-                        ? Icons.error_outline
-                        : Icons.videocam_off_outlined
+                      ? Icons.visibility
+                      : failed
+                      ? Icons.error_outline
+                      : Icons.videocam_off_outlined
                 : Icons.video_file,
             tone: showLive
                 ? running
-                    ? StatusBadgeTone.success
-                    : failed
-                        ? StatusBadgeTone.danger
-                        : StatusBadgeTone.neutral
+                      ? StatusBadgeTone.success
+                      : failed
+                      ? StatusBadgeTone.danger
+                      : StatusBadgeTone.neutral
                 : _videoStatus?.errorMessage?.isNotEmpty == true
-                    ? StatusBadgeTone.danger
-                    : StatusBadgeTone.neutral,
+                ? StatusBadgeTone.danger
+                : StatusBadgeTone.neutral,
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -395,9 +396,9 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                 Text(
                   'Camera controls',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 if (_cameras.isNotEmpty)
@@ -442,8 +443,8 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                       child: FilledButton.icon(
                         onPressed:
                             !_busy && !running && _selectedCameraId != null
-                                ? _startLive
-                                : null,
+                            ? _startLive
+                            : null,
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('Start'),
                       ),
@@ -495,16 +496,16 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                 Text(
                   'Uploaded video',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.text,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.text,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Temporary mode: events and frames are not saved to history.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 FilledButton.icon(
@@ -612,31 +613,31 @@ class _SurveillancePreviewCard extends StatelessWidget {
                   child: Text(
                     isLive ? 'Camera preview' : 'Video preview',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.text,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.text,
+                    ),
                   ),
                 ),
                 StatusBadge(
                   label: isLive
                       ? running
-                          ? '${liveStatus!.fps.toStringAsFixed(1)} FPS'
-                          : failed
-                              ? 'Unavailable'
-                              : 'Stopped'
+                            ? '${liveStatus!.fps.toStringAsFixed(1)} FPS'
+                            : failed
+                            ? 'Unavailable'
+                            : 'Stopped'
                       : videoStatus?.state ?? 'No video',
                   icon: isLive
                       ? running
-                          ? Icons.sensors
-                          : failed
-                              ? Icons.error_outline
-                              : Icons.videocam_off_outlined
+                            ? Icons.sensors
+                            : failed
+                            ? Icons.error_outline
+                            : Icons.videocam_off_outlined
                       : Icons.movie_outlined,
                   tone: running || videoStatus?.isActive == true
                       ? StatusBadgeTone.success
                       : failed || error != null
-                          ? StatusBadgeTone.danger
-                          : StatusBadgeTone.neutral,
+                      ? StatusBadgeTone.danger
+                      : StatusBadgeTone.neutral,
                 ),
               ],
             ),
@@ -649,13 +650,17 @@ class _SurveillancePreviewCard extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                   if (frame != null)
-                    Image.memory(frame!,
-                        fit: BoxFit.contain, gaplessPlayback: true),
+                    Image.memory(
+                      frame!,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                    ),
                   if (frame == null || overlay != null)
                     _PreviewOverlay(
                       icon: overlay?.icon ?? Icons.videocam_off,
                       title: overlay?.title ?? 'Waiting for frame',
-                      message: overlay?.message ??
+                      message:
+                          overlay?.message ??
                           'A preview frame will appear when analysis produces one.',
                       busy: busy,
                     ),
@@ -791,24 +796,21 @@ class _PreviewOverlay extends StatelessWidget {
                       child: const CircularProgressIndicator(strokeWidth: 3),
                     )
                   else
-                    Icon(
-                      icon,
-                      color: Colors.white70,
-                      size: compact ? 38 : 56,
-                    ),
+                    Icon(icon, color: Colors.white70, size: compact ? 38 : 56),
                   SizedBox(height: compact ? AppSpacing.sm : AppSpacing.lg),
                   Text(
                     title,
                     textAlign: TextAlign.center,
                     maxLines: compact ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
-                    style: (compact
-                            ? Theme.of(context).textTheme.titleMedium
-                            : Theme.of(context).textTheme.titleLarge)
-                        ?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
+                    style:
+                        (compact
+                                ? Theme.of(context).textTheme.titleMedium
+                                : Theme.of(context).textTheme.titleLarge)
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -817,9 +819,9 @@ class _PreviewOverlay extends StatelessWidget {
                     maxLines: compact ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                          height: 1.25,
-                        ),
+                      color: Colors.white70,
+                      height: 1.25,
+                    ),
                   ),
                 ],
               ),
@@ -846,10 +848,7 @@ class _CameraDetails extends StatelessWidget {
         StatusBadge(icon: Icons.videocam_outlined, label: camera!.name),
         StatusBadge(icon: Icons.input, label: 'Source ${camera!.source}'),
         if (camera!.location != null && camera!.location!.isNotEmpty)
-          StatusBadge(
-            icon: Icons.place_outlined,
-            label: camera!.location!,
-          ),
+          StatusBadge(icon: Icons.place_outlined, label: camera!.location!),
       ],
     );
   }
@@ -869,9 +868,9 @@ class _VideoStatusDetails extends StatelessWidget {
           status.filename,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: AppSpacing.sm),
         LinearProgressIndicator(value: status.progress?.clamp(0, 1)),
@@ -923,9 +922,9 @@ class _LiveDetectionSummary extends StatelessWidget {
             Text(
               'Last detection',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.text,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             if (tracks.isEmpty)
@@ -962,9 +961,9 @@ class _VideoDetectionSummary extends StatelessWidget {
             Text(
               'Temporary events',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.text,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
             ),
             if (results != null) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -994,7 +993,7 @@ class _VideoDetectionSummary extends StatelessWidget {
                 compact: true,
               )
             else
-              ...events.reversed.take(30).map(_VideoEventTile.new),
+              ...events.reversed.map(_VideoEventTile.new),
           ],
         ),
       ),
@@ -1118,10 +1117,7 @@ class _ErrorBanner extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
-          TextButton(
-            onPressed: onDismiss,
-            child: const Text('Dismiss'),
-          ),
+          TextButton(onPressed: onDismiss, child: const Text('Dismiss')),
         ],
       ),
     );

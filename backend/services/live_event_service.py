@@ -19,6 +19,8 @@ class _TrackEventState:
     unknown_streak: int = 0
     last_log_key: tuple[str, int | None] | None = None
     last_alert_at: float | None = None
+    last_seen_at: float | None = None
+    unknown_alert_recorded: bool = False
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,7 @@ class LiveEventRecorder:
         self.snapshots_dir = snapshots_dir
         self.unknown_confirmation_frames = unknown_confirmation_frames
         self.alert_cooldown_seconds = alert_cooldown_seconds
+        self.track_state_ttl_seconds = max(alert_cooldown_seconds, 1.0)
         self._track_states: dict[int, _TrackEventState] = {}
 
     def process(
@@ -61,17 +64,28 @@ class LiveEventRecorder:
     ) -> list[PersistedAlertEvent]:
         pending_logs: list[TrackAnalysis] = []
         pending_alerts: list[TrackAnalysis] = []
+        stale_track_ids = [
+            track_id
+            for track_id, state in self._track_states.items()
+            if state.last_seen_at is not None
+            and analysis.timestamp_seconds - state.last_seen_at
+            >= self.track_state_ttl_seconds
+        ]
+        for track_id in stale_track_ids:
+            self._track_states.pop(track_id, None)
 
         for track in analysis.tracks:
             state = self._track_states.setdefault(
                 track.track_id,
                 _TrackEventState(),
             )
+            state.last_seen_at = analysis.timestamp_seconds
             if (
                 track.status is DetectionStatus.KNOWN
                 and track.member_id is not None
             ):
                 state.unknown_streak = 0
+                state.unknown_alert_recorded = False
                 key = (DetectionStatus.KNOWN.value, track.member_id)
                 if state.last_log_key != key:
                     pending_logs.append(track)
@@ -80,6 +94,8 @@ class LiveEventRecorder:
             if track.status is DetectionStatus.UNKNOWN:
                 state.unknown_streak += 1
                 if state.unknown_streak < self.unknown_confirmation_frames:
+                    continue
+                if state.unknown_alert_recorded:
                     continue
                 alert_due = (
                     state.last_alert_at is None
@@ -181,6 +197,7 @@ class LiveEventRecorder:
             state.last_log_key = (track.status.value, track.member_id)
             if track in pending_alerts:
                 state.last_alert_at = analysis.timestamp_seconds
+                state.unknown_alert_recorded = True
         return persisted_alerts
 
     def _save_snapshot(

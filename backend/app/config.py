@@ -109,7 +109,7 @@ VIDEO_ANALYSIS_STOP_TIMEOUT_SECONDS = _float_setting(
 )
 VIDEO_ANALYSIS_MAX_EVENTS = _int_setting(
     "VIDEO_ANALYSIS_MAX_EVENTS",
-    1000,
+    0,
 )
 ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 

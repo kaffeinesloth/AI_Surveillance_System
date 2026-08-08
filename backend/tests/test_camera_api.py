@@ -1,5 +1,6 @@
 import sqlite3
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
@@ -10,6 +11,7 @@ from backend.camera.webcam import (
     CameraCaptureService,
     CameraSnapshot,
     CameraUnavailableError,
+    open_camera_capture,
     resolve_camera_source,
 )
 from backend.main import create_app
@@ -267,6 +269,27 @@ class CameraCaptureServiceTestCase(unittest.TestCase):
             service.capture_snapshot("0")
 
         self.assertTrue(captures[0].released)
+
+    def test_numeric_source_uses_avfoundation_fallback_on_macos(self):
+        captures = []
+
+        def factory(source, api_preference=None):
+            capture = FakeVideoCapture(
+                source,
+                opened=api_preference == cv2.CAP_AVFOUNDATION,
+            )
+            capture.api_preference = api_preference
+            captures.append(capture)
+            return capture
+
+        with patch("backend.camera.webcam.platform.system", return_value="Darwin"):
+            capture = open_camera_capture(0, capture_factory=factory)
+
+        self.assertTrue(capture.isOpened())
+        self.assertEqual(captures[0].api_preference, None)
+        self.assertEqual(captures[1].api_preference, cv2.CAP_AVFOUNDATION)
+        self.assertTrue(captures[0].released)
+        self.assertFalse(captures[1].released)
 
 
 if __name__ == "__main__":
