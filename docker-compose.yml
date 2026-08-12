@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: .
+      target: backend
+    ports:
+      - "8000:8000"
+    environment:
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8000
+      CORS_ORIGINS: "*"
+      DATABASE_PATH: /app/backend/database/app.db
+      DATA_DIR: /app/backend/data
+      MODELS_DIR: /app/backend/models
+    volumes:
+      - backend_database:/app/backend/database
+      - backend_data:/app/backend/data
+      - backend_models:/app/backend/models
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        BACKEND_URL: /api
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  backend_database:
+  backend_data:
+  backend_models:

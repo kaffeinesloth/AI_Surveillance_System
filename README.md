@@ -88,6 +88,44 @@ http://127.0.0.1:8000/docs
 The readiness endpoint verifies the SQLite schema and writable runtime
 directories without loading or downloading AI models.
 
+## Run With Docker
+
+From the project root:
+
+```powershell
+docker compose up --build
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+The backend is also exposed directly at:
+
+```text
+http://localhost:8000/health
+http://localhost:8000/docs
+```
+
+Docker Compose builds two services:
+
+| Service | Purpose | Host port |
+|---|---|---|
+| `backend` | FastAPI API, SQLite, AI pipeline and uploaded-video analysis | `8000` |
+| `frontend` | Flutter web app served by Nginx, with `/api` proxied to backend | `8080` |
+
+SQLite data, uploaded runtime files, and downloaded AI models are kept in Docker
+volumes named `backend_database`, `backend_data`, and `backend_models`, so they
+survive container restarts.
+
+First real AI usage may take time because InsightFace and YOLO assets can be
+downloaded inside the `backend_models` volume. Live webcam access from Docker is
+host-dependent; uploaded-video analysis works without camera passthrough. If
+webcam access is required and Docker cannot see the device, run the backend
+locally with the manual command above.
+
 ## First-time use
 
 1. Start the backend and Flutter application.
