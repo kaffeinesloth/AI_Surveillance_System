@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -26,11 +27,15 @@ class SurveillanceScreen extends StatefulWidget {
 
 class _SurveillanceScreenState extends State<SurveillanceScreen> {
   late final SecurityService _service = widget.service ?? SecurityService();
+  late final TextEditingController _zoneNameController =
+      TextEditingController();
   _SurveillanceMode _mode = _SurveillanceMode.live;
   List<CameraModel> _cameras = const [];
   int? _selectedCameraId;
   SurveillanceStatusModel? _liveStatus;
   LatestAnalysisModel? _latest;
+  List<ZoneModel> _zones = const [];
+  List<ZonePointModel> _draftZonePoints = const [];
   Uint8List? _frame;
   VideoAnalysisStatusModel? _videoStatus;
   VideoAnalysisResultsModel? _videoResults;
@@ -49,6 +54,7 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
   void dispose() {
     _liveTimer?.cancel();
     _videoTimer?.cancel();
+    _zoneNameController.dispose();
     super.dispose();
   }
 
@@ -60,14 +66,20 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       ]);
       final cameras = values[0] as List<CameraModel>;
       final status = values[1] as SurveillanceStatusModel;
+      final selectedCameraId =
+          status.cameraId ??
+          _selectedCameraId ??
+          (cameras.isEmpty ? null : cameras.first.id);
+      final zones = selectedCameraId == null
+          ? const <ZoneModel>[]
+          : await _service.listZones(selectedCameraId);
       if (!mounted) return;
       setState(() {
         _cameras = cameras;
         _liveStatus = status;
-        _selectedCameraId =
-            status.cameraId ??
-            _selectedCameraId ??
-            (cameras.isEmpty ? null : cameras.first.id);
+        _selectedCameraId = selectedCameraId;
+        _zones = zones;
+        _draftZonePoints = const [];
       });
       if (status.running) _startLivePolling();
     });
@@ -81,7 +93,10 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       setState(() {
         _cameras = cameras;
         _selectedCameraId = camera.id;
+        _zones = const [];
+        _draftZonePoints = const [];
       });
+      await _loadZones(camera.id);
       if (mounted) {
         showAppSnackBar(
           context,
@@ -105,6 +120,104 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
         message: 'Live surveillance started.',
         tone: AppMessageTone.success,
       );
+    });
+  }
+
+  Future<void> _loadZones(int cameraId) async {
+    try {
+      final zones = await _service.listZones(cameraId);
+      if (!mounted) return;
+      setState(() => _zones = zones);
+    } catch (error) {
+      if (mounted) setState(() => _error = friendlyErrorMessage(error));
+    }
+  }
+
+  void _selectCamera(int? cameraId) {
+    setState(() {
+      _selectedCameraId = cameraId;
+      _zones = const [];
+      _draftZonePoints = const [];
+    });
+    if (cameraId != null) _loadZones(cameraId);
+  }
+
+  void _addDraftZonePoint(ZonePointModel point) {
+    if (_mode != _SurveillanceMode.live) return;
+    if (_liveStatus?.running != true) return;
+    if (_draftZonePoints.length >= 4) return;
+    setState(() {
+      _draftZonePoints = [..._draftZonePoints, point];
+    });
+  }
+
+  void _undoDraftZonePoint() {
+    if (_draftZonePoints.isEmpty) return;
+    setState(() {
+      _draftZonePoints = _draftZonePoints
+          .take(_draftZonePoints.length - 1)
+          .toList();
+    });
+  }
+
+  void _clearDraftZone() {
+    if (_draftZonePoints.isEmpty) return;
+    setState(() => _draftZonePoints = const []);
+  }
+
+  Future<void> _saveDraftZone() async {
+    final cameraId = _selectedCameraId;
+    if (cameraId == null || _draftZonePoints.length != 4) return;
+    final name = _zoneNameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Zone name is required.');
+      return;
+    }
+    await _guard(() async {
+      await _service.createZone(
+        cameraId: cameraId,
+        name: name,
+        points: _draftZonePoints,
+      );
+      final zones = await _service.listZones(cameraId);
+      if (!mounted) return;
+      setState(() {
+        _zones = zones;
+        _draftZonePoints = const [];
+        _zoneNameController.clear();
+      });
+      showAppSnackBar(
+        context,
+        message: 'Restricted zone saved.',
+        tone: AppMessageTone.success,
+      );
+    });
+  }
+
+  Future<void> _deleteZone(int zoneId) async {
+    final cameraId = _selectedCameraId;
+    if (cameraId == null) return;
+    await _guard(() async {
+      await _service.deleteZone(zoneId);
+      final zones = await _service.listZones(cameraId);
+      if (!mounted) return;
+      setState(() => _zones = zones);
+      showAppSnackBar(
+        context,
+        message: 'Restricted zone deleted.',
+        tone: AppMessageTone.info,
+      );
+    });
+  }
+
+  Future<void> _setZoneActive(ZoneModel zone, bool isActive) async {
+    final cameraId = _selectedCameraId;
+    if (cameraId == null) return;
+    await _guard(() async {
+      await _service.setZoneActive(zone.id, isActive);
+      final zones = await _service.listZones(cameraId);
+      if (!mounted) return;
+      setState(() => _zones = zones);
     });
   }
 
@@ -332,9 +445,12 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
               frame: _frame,
               busy: _busy,
               liveStatus: _liveStatus,
+              latest: _latest,
               videoStatus: _videoStatus,
               hasCameras: _cameras.isNotEmpty,
               error: _error,
+              draftZonePoints: _draftZonePoints,
+              onAddZonePoint: _addDraftZonePoint,
             );
             final sidePanel = showLive ? _buildLivePanel() : _buildVideoPanel();
 
@@ -416,9 +532,7 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                           ),
                         )
                         .toList(),
-                    onChanged: running
-                        ? null
-                        : (value) => setState(() => _selectedCameraId = value),
+                    onChanged: running ? null : _selectCamera,
                   )
                 else
                   _UnavailablePanel(
@@ -476,6 +590,20 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
             ),
           ),
         ],
+        const SizedBox(height: AppSpacing.md),
+        _RestrictedZonePanel(
+          running: running,
+          zones: _zones,
+          draftPoints: _draftZonePoints,
+          nameController: _zoneNameController,
+          onSave: _busy || _draftZonePoints.length != 4 ? null : _saveDraftZone,
+          onUndo: _busy || _draftZonePoints.isEmpty
+              ? null
+              : _undoDraftZonePoint,
+          onClear: _busy || _draftZonePoints.isEmpty ? null : _clearDraftZone,
+          onToggleActive: _busy ? null : _setZoneActive,
+          onDelete: _busy ? null : _deleteZone,
+        ),
         const SizedBox(height: AppSpacing.md),
         _LiveDetectionSummary(latest: _latest),
       ],
@@ -575,18 +703,24 @@ class _SurveillancePreviewCard extends StatelessWidget {
     required this.frame,
     required this.busy,
     required this.liveStatus,
+    required this.latest,
     required this.videoStatus,
     required this.hasCameras,
     required this.error,
+    required this.draftZonePoints,
+    required this.onAddZonePoint,
   });
 
   final _SurveillanceMode mode;
   final Uint8List? frame;
   final bool busy;
   final SurveillanceStatusModel? liveStatus;
+  final LatestAnalysisModel? latest;
   final VideoAnalysisStatusModel? videoStatus;
   final bool hasCameras;
   final String? error;
+  final List<ZonePointModel> draftZonePoints;
+  final ValueChanged<ZonePointModel> onAddZonePoint;
 
   @override
   Widget build(BuildContext context) {
@@ -654,6 +788,13 @@ class _SurveillancePreviewCard extends StatelessWidget {
                       frame!,
                       fit: BoxFit.contain,
                       gaplessPlayback: true,
+                    ),
+                  if (isLive && running && latest != null)
+                    _ZoneDraftOverlay(
+                      frameWidth: latest!.width,
+                      frameHeight: latest!.height,
+                      points: draftZonePoints,
+                      onAddPoint: onAddZonePoint,
                     ),
                   if (frame == null || overlay != null)
                     _PreviewOverlay(
@@ -941,6 +1082,285 @@ class _LiveDetectionSummary extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RestrictedZonePanel extends StatelessWidget {
+  const _RestrictedZonePanel({
+    required this.running,
+    required this.zones,
+    required this.draftPoints,
+    required this.nameController,
+    required this.onSave,
+    required this.onUndo,
+    required this.onClear,
+    required this.onToggleActive,
+    required this.onDelete,
+  });
+
+  final bool running;
+  final List<ZoneModel> zones;
+  final List<ZonePointModel> draftPoints;
+  final TextEditingController nameController;
+  final VoidCallback? onSave;
+  final VoidCallback? onUndo;
+  final VoidCallback? onClear;
+  final void Function(ZoneModel zone, bool isActive)? onToggleActive;
+  final ValueChanged<int>? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeCount = zones.where((zone) => zone.isActive).length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Restricted zones',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+                StatusBadge(
+                  icon: Icons.polyline_outlined,
+                  label: '$activeCount active',
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              running
+                  ? 'Tap the live preview to place exactly 4 corner points.'
+                  : 'Start live surveillance before placing points.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: nameController,
+              enabled: running,
+              decoration: const InputDecoration(
+                labelText: 'Zone name',
+                hintText: 'Server door',
+                prefixIcon: Icon(Icons.edit_location_alt_outlined),
+              ),
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                FilledButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.save_outlined),
+                  label: Text('Save ${draftPoints.length}/4 points'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onUndo,
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Undo'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.clear),
+                  label: const Text('Clear'),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (draftPoints.isNotEmpty)
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: draftPoints
+                    .map(
+                      (point) => Chip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text('${point.x}, ${point.y}'),
+                      ),
+                    )
+                    .toList(),
+              ),
+            if (zones.isNotEmpty) ...[
+              if (draftPoints.isNotEmpty) const SizedBox(height: AppSpacing.md),
+              ...zones.map(
+                (zone) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Checkbox(
+                    value: zone.isActive,
+                    onChanged: onToggleActive == null
+                        ? null
+                        : (value) => onToggleActive!(zone, value ?? false),
+                  ),
+                  title: Text(zone.name),
+                  subtitle: Text(
+                    zone.isActive
+                        ? '${zone.points.length} points · active'
+                        : '${zone.points.length} points · inactive',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Delete zone',
+                    onPressed: onDelete == null
+                        ? null
+                        : () => onDelete!(zone.id),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ZoneDraftOverlay extends StatelessWidget {
+  const _ZoneDraftOverlay({
+    required this.frameWidth,
+    required this.frameHeight,
+    required this.points,
+    required this.onAddPoint,
+  });
+
+  final int frameWidth;
+  final int frameHeight;
+  final List<ZonePointModel> points;
+  final ValueChanged<ZonePointModel> onAddPoint;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final imageRect = _containedImageRect(
+          Size(constraints.maxWidth, constraints.maxHeight),
+        );
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTapDown: (details) {
+            final local = details.localPosition;
+            if (!imageRect.contains(local)) return;
+            final x =
+                ((local.dx - imageRect.left) / imageRect.width * frameWidth)
+                    .round()
+                    .clamp(0, frameWidth)
+                    .toInt();
+            final y =
+                ((local.dy - imageRect.top) / imageRect.height * frameHeight)
+                    .round()
+                    .clamp(0, frameHeight)
+                    .toInt();
+            onAddPoint(ZonePointModel(x: x, y: y));
+          },
+          child: CustomPaint(
+            painter: _ZoneDraftPainter(
+              imageRect: imageRect,
+              frameWidth: frameWidth,
+              frameHeight: frameHeight,
+              points: points,
+            ),
+            size: Size.infinite,
+          ),
+        );
+      },
+    );
+  }
+
+  Rect _containedImageRect(Size canvas) {
+    final scale = math.min(
+      canvas.width / frameWidth,
+      canvas.height / frameHeight,
+    );
+    final width = frameWidth * scale;
+    final height = frameHeight * scale;
+    return Rect.fromLTWH(
+      (canvas.width - width) / 2,
+      (canvas.height - height) / 2,
+      width,
+      height,
+    );
+  }
+}
+
+class _ZoneDraftPainter extends CustomPainter {
+  const _ZoneDraftPainter({
+    required this.imageRect,
+    required this.frameWidth,
+    required this.frameHeight,
+    required this.points,
+  });
+
+  final Rect imageRect;
+  final int frameWidth;
+  final int frameHeight;
+  final List<ZonePointModel> points;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    final paint = Paint()
+      ..color = Colors.amber
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    final fill = Paint()
+      ..color = Colors.amber.withAlpha(45)
+      ..style = PaintingStyle.fill;
+    final dot = Paint()
+      ..color = Colors.amber
+      ..style = PaintingStyle.fill;
+    final offsets = points.map(_toCanvas).toList();
+    final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
+    for (final offset in offsets.skip(1)) {
+      path.lineTo(offset.dx, offset.dy);
+    }
+    if (offsets.length >= 3) {
+      path.close();
+      canvas.drawPath(path, fill);
+    }
+    canvas.drawPath(path, paint);
+    for (var index = 0; index < offsets.length; index += 1) {
+      canvas.drawCircle(offsets[index], 5, dot);
+      _drawPointLabel(canvas, offsets[index], index + 1);
+    }
+  }
+
+  Offset _toCanvas(ZonePointModel point) {
+    return Offset(
+      imageRect.left + point.x / frameWidth * imageRect.width,
+      imageRect.top + point.y / frameHeight * imageRect.height,
+    );
+  }
+
+  void _drawPointLabel(Canvas canvas, Offset offset, int index) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: '$index',
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, offset + const Offset(7, -16));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZoneDraftPainter oldDelegate) {
+    return oldDelegate.points != points ||
+        oldDelegate.imageRect != imageRect ||
+        oldDelegate.frameWidth != frameWidth ||
+        oldDelegate.frameHeight != frameHeight;
   }
 }
 

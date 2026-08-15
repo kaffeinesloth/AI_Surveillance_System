@@ -22,6 +22,7 @@ from backend.services.gallery_service import (
     build_analysis_runtime,
 )
 from backend.services.live_event_service import LiveEventRecorder
+from backend.services.zone_service import RestrictedZone, ZoneService
 
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,13 @@ class LiveSurveillanceManager:
             [sqlite3.Connection], AnalysisRuntime
         ] = build_analysis_runtime,
         event_recorder_factory: Callable[
-            [sqlite3.Connection, int, int], LiveEventRecorder
+            [
+                sqlite3.Connection,
+                int,
+                int,
+                list[RestrictedZone] | None,
+            ],
+            LiveEventRecorder,
         ] | None = None,
         read_failure_limit: int = CAMERA_READ_FAILURE_LIMIT,
         stop_timeout_seconds: float = SURVEILLANCE_STOP_TIMEOUT_SECONDS,
@@ -260,16 +267,22 @@ class LiveSurveillanceManager:
         connection = self.connection_factory()
         capture = None
         runtime = None
+        restricted_zones: list[RestrictedZone] = []
         started = time.perf_counter()
         error_message = None
         final_state = LiveSurveillanceState.STOPPED
 
         try:
             runtime = self.runtime_factory(connection)
+            zone_service = ZoneService(connection)
+            restricted_zones = zone_service.list_active_restricted_zones(
+                camera_id
+            )
             event_recorder = self.event_recorder_factory(
                 connection,
                 session_id,
                 camera_id,
+                restricted_zones,
             )
             capture = open_camera_capture(
                 resolve_camera_source(source),
@@ -307,10 +320,16 @@ class LiveSurveillanceManager:
                     frame_index=frame_index,
                     timestamp_seconds=elapsed,
                 )
+                if frame_index % 15 == 0:
+                    restricted_zones = zone_service.list_active_restricted_zones(
+                        camera_id
+                    )
+                    event_recorder.restricted_zones = restricted_zones
                 annotated = annotate_frame(
                     frame,
                     analysis,
                     member_names=runtime.member_names,
+                    restricted_zones=restricted_zones,
                 )
                 encoded, buffer = cv2.imencode(".jpg", annotated)
                 if not encoded:
@@ -385,11 +404,13 @@ class LiveSurveillanceManager:
         connection: sqlite3.Connection,
         session_id: int,
         camera_id: int,
+        restricted_zones: list[RestrictedZone] | None = None,
     ) -> LiveEventRecorder:
         return LiveEventRecorder(
             connection,
             session_id=session_id,
             camera_id=camera_id,
+            restricted_zones=restricted_zones,
         )
 
 

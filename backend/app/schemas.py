@@ -253,14 +253,24 @@ class ZonePoint(BaseModel):
 class ZoneCreate(BaseModel):
     camera_id: int = Field(gt=0)
     name: str = Field(min_length=1, max_length=120)
-    points: list[ZonePoint] = Field(min_length=3)
+    points: list[ZonePoint] = Field(min_length=4, max_length=4)
+
+
+class ZoneUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    points: list[ZonePoint] | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+    )
+    is_active: bool | None = None
 
 
 class Zone(BaseModel):
     id: int
     camera_id: int
     name: str
-    polygon_json: str
+    points: list[ZonePoint]
     is_active: bool
     created_at: str
     updated_at: str

@@ -30,7 +30,11 @@ ENV BACKEND_HOST=0.0.0.0 \
     CORS_ORIGINS=* \
     DATABASE_PATH=/app/backend/database/app.db \
     DATA_DIR=/app/backend/data \
-    MODELS_DIR=/app/backend/models
+    MODELS_DIR=/app/backend/models \
+    UNKNOWN_CONFIRMATION_FRAMES=5 \
+    ALERT_COOLDOWN_SECONDS=10.0 \
+    RESTRICTED_ZONE_DWELL_SECONDS=10.0 \
+    RESTRICTED_ZONE_ALERT_COOLDOWN_SECONDS=30.0
 
 EXPOSE 8000
 

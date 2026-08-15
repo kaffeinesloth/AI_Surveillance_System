@@ -19,8 +19,8 @@ class ApiException implements Exception {
 
 class SecurityService {
   SecurityService({http.Client? client, String? baseUrl})
-      : _client = client ?? http.Client(),
-        baseUrl = baseUrl ?? ApiConfig.baseUrl;
+    : _client = client ?? http.Client(),
+      baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
   final http.Client _client;
   final String baseUrl;
@@ -90,6 +90,52 @@ class SecurityService {
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);
     return response.bodyBytes;
+  }
+
+  Future<List<ZoneModel>> listZones(int cameraId) async {
+    final response = await _client.get(
+      _uri('/zones', {
+        'camera_id': cameraId.toString(),
+        'include_inactive': 'true',
+      }),
+    );
+    _ensureSuccess(response);
+    return _jsonList(
+      response,
+    ).map((item) => ZoneModel.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<ZoneModel> createZone({
+    required int cameraId,
+    required String name,
+    required List<ZonePointModel> points,
+  }) async {
+    final response = await _client.post(
+      _uri('/zones'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'camera_id': cameraId,
+        'name': name,
+        'points': points.map((point) => point.toJson()).toList(),
+      }),
+    );
+    _ensureSuccess(response);
+    return ZoneModel.fromJson(_jsonMap(response));
+  }
+
+  Future<ZoneModel> setZoneActive(int zoneId, bool isActive) async {
+    final response = await _client.patch(
+      _uri('/zones/$zoneId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'is_active': isActive}),
+    );
+    _ensureSuccess(response);
+    return ZoneModel.fromJson(_jsonMap(response));
+  }
+
+  Future<void> deleteZone(int zoneId) async {
+    final response = await _client.delete(_uri('/zones/$zoneId'));
+    _ensureSuccess(response);
   }
 
   Future<VideoAnalysisStatusModel> submitVideo({

@@ -10,6 +10,7 @@ from backend.ai.contracts import (
 from backend.ai.recognition_buffer import TrackRecognitionBuffer
 from backend.app.config import FACE_MATCH_THRESHOLD, RECOGNITION_BUFFER_SIZE
 from backend.app.models import DetectionStatus
+from backend.services.zone_service import RestrictedZone
 
 
 class FrameAnalysisEngine:
@@ -113,14 +114,40 @@ def annotate_frame(
     analysis: FrameAnalysis,
     *,
     member_names: dict[int, str] | None = None,
+    restricted_zones: list[RestrictedZone] | None = None,
 ) -> np.ndarray:
     annotated = frame_bgr.copy()
     names = member_names or {}
+    zones = restricted_zones or []
     colors = {
         DetectionStatus.KNOWN: (60, 180, 75),
         DetectionStatus.UNKNOWN: (40, 40, 220),
         DetectionStatus.LOW_QUALITY: (0, 165, 255),
     }
+
+    for zone in zones:
+        points = np.array(
+            [[point.x, point.y] for point in zone.points],
+            dtype=np.int32,
+        )
+        cv2.polylines(
+            annotated,
+            [points],
+            isClosed=True,
+            color=(0, 255, 255),
+            thickness=2,
+        )
+        label_position = tuple(points.min(axis=0))
+        cv2.putText(
+            annotated,
+            zone.name,
+            (int(label_position[0]), max(20, int(label_position[1]) - 8)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
 
     for track in analysis.tracks:
         box = track.bounding_box

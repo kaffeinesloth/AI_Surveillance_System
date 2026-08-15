@@ -14,6 +14,7 @@ from backend.routes import (
     surveillance_routes,
     system_routes,
     video_analysis_routes,
+    zone_routes,
 )
 from backend.services.surveillance_manager import surveillance_manager
 from backend.services.video_analysis_manager import video_analysis_manager
@@ -50,6 +51,7 @@ def create_app(*, initialize_database: bool = True) -> FastAPI:
     application.include_router(log_routes.router)
     application.include_router(alert_routes.router)
     application.include_router(video_analysis_routes.router)
+    application.include_router(zone_routes.router)
     return application
 
 

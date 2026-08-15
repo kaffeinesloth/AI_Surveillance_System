@@ -8,12 +8,12 @@ class CameraModel {
   });
 
   factory CameraModel.fromJson(Map<String, dynamic> json) => CameraModel(
-        id: json['id'] as int,
-        name: json['name'] as String,
-        source: json['source'] as String,
-        location: json['location'] as String?,
-        isActive: json['is_active'] as bool,
-      );
+    id: json['id'] as int,
+    name: json['name'] as String,
+    source: json['source'] as String,
+    location: json['location'] as String?,
+    isActive: json['is_active'] as bool,
+  );
 
   final int id;
   final String name;
@@ -58,6 +58,7 @@ class AnalysisTrackModel {
     required this.trackId,
     required this.status,
     required this.personConfidence,
+    required this.boundingBox,
     this.memberName,
     this.similarity,
   });
@@ -67,6 +68,9 @@ class AnalysisTrackModel {
         trackId: json['track_id'] as int,
         status: json['status'] as String,
         personConfidence: (json['person_confidence'] as num).toDouble(),
+        boundingBox: AnalysisBoundingBoxModel.fromJson(
+          json['bounding_box'] as Map<String, dynamic>,
+        ),
         memberName: json['member_name'] as String?,
         similarity: (json['similarity'] as num?)?.toDouble(),
       );
@@ -74,16 +78,24 @@ class AnalysisTrackModel {
   final int trackId;
   final String status;
   final double personConfidence;
+  final AnalysisBoundingBoxModel boundingBox;
   final String? memberName;
   final double? similarity;
 }
 
 class LatestAnalysisModel {
-  const LatestAnalysisModel({required this.frameIndex, required this.tracks});
+  const LatestAnalysisModel({
+    required this.frameIndex,
+    required this.width,
+    required this.height,
+    required this.tracks,
+  });
 
   factory LatestAnalysisModel.fromJson(Map<String, dynamic> json) =>
       LatestAnalysisModel(
         frameIndex: json['frame_index'] as int,
+        width: json['width'] as int,
+        height: json['height'] as int,
         tracks: (json['tracks'] as List<dynamic>)
             .map(
               (item) =>
@@ -93,7 +105,69 @@ class LatestAnalysisModel {
       );
 
   final int frameIndex;
+  final int width;
+  final int height;
   final List<AnalysisTrackModel> tracks;
+}
+
+class AnalysisBoundingBoxModel {
+  const AnalysisBoundingBoxModel({
+    required this.x1,
+    required this.y1,
+    required this.x2,
+    required this.y2,
+  });
+
+  factory AnalysisBoundingBoxModel.fromJson(Map<String, dynamic> json) =>
+      AnalysisBoundingBoxModel(
+        x1: json['x1'] as int,
+        y1: json['y1'] as int,
+        x2: json['x2'] as int,
+        y2: json['y2'] as int,
+      );
+
+  final int x1;
+  final int y1;
+  final int x2;
+  final int y2;
+}
+
+class ZonePointModel {
+  const ZonePointModel({required this.x, required this.y});
+
+  factory ZonePointModel.fromJson(Map<String, dynamic> json) =>
+      ZonePointModel(x: json['x'] as int, y: json['y'] as int);
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y};
+
+  final int x;
+  final int y;
+}
+
+class ZoneModel {
+  const ZoneModel({
+    required this.id,
+    required this.cameraId,
+    required this.name,
+    required this.points,
+    required this.isActive,
+  });
+
+  factory ZoneModel.fromJson(Map<String, dynamic> json) => ZoneModel(
+    id: json['id'] as int,
+    cameraId: json['camera_id'] as int,
+    name: json['name'] as String,
+    points: (json['points'] as List<dynamic>)
+        .map((item) => ZonePointModel.fromJson(item as Map<String, dynamic>))
+        .toList(),
+    isActive: json['is_active'] as bool,
+  );
+
+  final int id;
+  final int cameraId;
+  final String name;
+  final List<ZonePointModel> points;
+  final bool isActive;
 }
 
 class VideoAnalysisStatusModel {
@@ -238,14 +312,14 @@ class AlertModel {
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> json) => AlertModel(
-        id: json['id'] as int,
-        alertType: json['alert_type'] as String,
-        message: json['message'] as String,
-        cameraName: json['camera_name'] as String,
-        isRead: json['is_read'] as bool,
-        createdAt: json['created_at'] as String,
-        snapshotUrl: json['snapshot_url'] as String?,
-      );
+    id: json['id'] as int,
+    alertType: json['alert_type'] as String,
+    message: json['message'] as String,
+    cameraName: json['camera_name'] as String,
+    isRead: json['is_read'] as bool,
+    createdAt: json['created_at'] as String,
+    snapshotUrl: json['snapshot_url'] as String?,
+  );
 
   final int id;
   final String alertType;
