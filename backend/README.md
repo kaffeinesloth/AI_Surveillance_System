@@ -3,11 +3,35 @@
 FastAPI backend for member registration, live webcam surveillance, persistent
 live logs/alerts, and temporary uploaded-video analysis.
 
+## Recommended Docker Run
+
+From the repository root:
+
+```powershell
+docker compose up --build
+```
+
+This starts the FastAPI backend on `http://localhost:8000` and the Flutter web
+client on `http://localhost:8080`. Runtime database, data, and model files are
+stored in Docker volumes so a fresh clone does not need manual directory setup.
+
 ## Install
 
 Run commands from the repository root:
 
 ```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r backend/requirements.txt
+```
+
+macOS/Linux shell equivalent:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -r backend/requirements.txt
 ```
 
@@ -126,6 +150,8 @@ for every processed frame:
   frames before it is logged and creates an alert.
 - Repeated alerts for the same unknown track are limited by a configurable
   cooldown.
+- Unknown restricted-zone lingering alerts are created after the configured
+  dwell time, 5 seconds by default.
 - Low-quality/no-face frames do not create false unknown logs.
 - Confirmed unknown alerts save the annotated frame under
   `backend/data/snapshots/`.

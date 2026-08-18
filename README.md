@@ -23,15 +23,45 @@ beta_testing_files_02/  teammate presentation pipeline; not production code
 docs/                   report and assignment documents
 ```
 
+## Quick Start For Teammates
+
+The recommended fresh-clone path is Docker because it installs the backend,
+builds the Flutter web app, creates runtime volumes, and serves the app from
+one command.
+
+```powershell
+git clone <repository-url>
+cd AI_Surveillance_System
+docker compose up --build
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+The backend API is available at:
+
+```text
+http://localhost:8000/health
+http://localhost:8000/health/readiness
+http://localhost:8000/docs
+```
+
+The first real registration or analysis request can be slow because InsightFace
+and YOLO model assets may download into the Docker model volume.
+
 ## Prerequisites
 
 - Python 3.12
 - Flutter SDK
 - Git
+- Docker Desktop, for the recommended Docker setup
 - Windows desktop: Visual Studio Desktop development tools
 - macOS desktop: Xcode
 
-## Install
+## Local Install
 
 From the project root:
 
@@ -39,6 +69,18 @@ From the project root:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r backend\requirements.txt
+cd app_flutter
+flutter pub get
+cd ..
+```
+
+macOS/Linux shell equivalent:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r backend/requirements.txt
 cd app_flutter
 flutter pub get
 cd ..
@@ -90,7 +132,6 @@ directories without loading or downloading AI models.
 
 ## Run With Docker
 
-This is the easiest path for teammates who pull the project from GitHub.
 Install Docker Desktop, start it, then run from the project root:
 
 ```powershell
@@ -119,7 +160,9 @@ Docker Compose builds two services:
 
 Docker runtime settings are committed in
 [`docker/backend.env`](docker/backend.env). The Compose file reads that file, so
-teammates do not need to create a local `.env` before the first run.
+teammates do not need to create a local `.env` before the first run. Important
+defaults include unknown confirmation after 5 frames and restricted-zone
+lingering after 5 seconds.
 
 SQLite data, uploaded runtime files, and downloaded AI models are kept in Docker
 volumes named `backend_database`, `backend_data`, and `backend_models`, so they
@@ -138,6 +181,13 @@ docker compose ps
 docker compose logs -f backend
 docker compose logs -f frontend
 docker compose down
+```
+
+After pulling new code, rebuild containers:
+
+```powershell
+git pull
+docker compose up --build
 ```
 
 To reset all saved Docker data, including the SQLite database and downloaded
