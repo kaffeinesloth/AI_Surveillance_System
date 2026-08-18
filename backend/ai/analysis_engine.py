@@ -149,6 +149,8 @@ def annotate_frame(
             cv2.LINE_AA,
         )
 
+    unknown_labels = _unknown_labels_by_position(analysis.tracks)
+
     for track in analysis.tracks:
         box = track.bounding_box
         color = colors[track.status]
@@ -157,7 +159,7 @@ def annotate_frame(
         if track.status is DetectionStatus.KNOWN and track.member_id is not None:
             identity = names.get(track.member_id, f"Member {track.member_id}")
         elif track.status is DetectionStatus.UNKNOWN:
-            identity = "Unknown"
+            identity = unknown_labels.get(id(track), "Unknown Person")
         else:
             identity = "Face unavailable"
 
@@ -166,7 +168,7 @@ def annotate_frame(
             if track.similarity is not None
             else ""
         )
-        label = f"#{track.track_id} {identity}{score}"
+        label = f"{identity}{score}"
         cv2.putText(
             annotated,
             label,
@@ -178,3 +180,16 @@ def annotate_frame(
             cv2.LINE_AA,
         )
     return annotated
+
+
+def _unknown_labels_by_position(
+    tracks: tuple[TrackAnalysis, ...],
+) -> dict[int, str]:
+    unknown_tracks = sorted(
+        (track for track in tracks if track.status is DetectionStatus.UNKNOWN),
+        key=lambda track: (track.bounding_box.y1, track.bounding_box.x1),
+    )
+    return {
+        id(track): f"Unknown Person {index:02d}"
+        for index, track in enumerate(unknown_tracks, start=1)
+    }

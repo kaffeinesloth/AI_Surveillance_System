@@ -1,21 +1,15 @@
+name: ai_surveillance_system
+
 services:
   backend:
     build:
       context: .
       target: backend
+    init: true
     ports:
       - "8000:8000"
-    environment:
-      BACKEND_HOST: 0.0.0.0
-      BACKEND_PORT: 8000
-      CORS_ORIGINS: "*"
-      DATABASE_PATH: /app/backend/database/app.db
-      DATA_DIR: /app/backend/data
-      MODELS_DIR: /app/backend/models
-      UNKNOWN_CONFIRMATION_FRAMES: 5
-      ALERT_COOLDOWN_SECONDS: 10.0
-      RESTRICTED_ZONE_DWELL_SECONDS: 10.0
-      RESTRICTED_ZONE_ALERT_COOLDOWN_SECONDS: 30.0
+    env_file:
+      - docker/backend.env
     volumes:
       - backend_database:/app/backend/database
       - backend_data:/app/backend/data
@@ -34,11 +28,18 @@ services:
       target: frontend
       args:
         BACKEND_URL: /api
+    init: true
     ports:
       - "8080:80"
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
 volumes:

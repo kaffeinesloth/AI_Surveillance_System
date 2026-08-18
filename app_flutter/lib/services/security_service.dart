@@ -24,18 +24,40 @@ class SecurityService {
 
   final http.Client _client;
   final String baseUrl;
+  static const _requestTimeout = Duration(seconds: 4);
+  static const _uploadTimeout = Duration(seconds: 60);
 
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.parse('$baseUrl$path').replace(queryParameters: query);
 
+  Future<http.Response> _get(Uri uri) =>
+      _client.get(uri).timeout(_requestTimeout);
+
+  Future<http.Response> _post(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) =>
+      _client.post(uri, headers: headers, body: body).timeout(_requestTimeout);
+
+  Future<http.Response> _patch(
+    Uri uri, {
+    Map<String, String>? headers,
+    Object? body,
+  }) =>
+      _client.patch(uri, headers: headers, body: body).timeout(_requestTimeout);
+
+  Future<http.Response> _delete(Uri uri) =>
+      _client.delete(uri).timeout(_requestTimeout);
+
   Future<bool> health() async {
-    final response = await _client.get(_uri('/health'));
+    final response = await _get(_uri('/health'));
     _ensureSuccess(response);
     return true;
   }
 
   Future<List<CameraModel>> listCameras() async {
-    final response = await _client.get(_uri('/cameras'));
+    final response = await _get(_uri('/cameras'));
     _ensureSuccess(response);
     return (_jsonList(response))
         .map((item) => CameraModel.fromJson(item as Map<String, dynamic>))
@@ -43,7 +65,7 @@ class SecurityService {
   }
 
   Future<CameraModel> addLaptopWebcam() async {
-    final response = await _client.post(
+    final response = await _post(
       _uri('/cameras'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -57,13 +79,13 @@ class SecurityService {
   }
 
   Future<SurveillanceStatusModel> surveillanceStatus() async {
-    final response = await _client.get(_uri('/surveillance/status'));
+    final response = await _get(_uri('/surveillance/status'));
     _ensureSuccess(response);
     return SurveillanceStatusModel.fromJson(_jsonMap(response));
   }
 
   Future<SurveillanceStatusModel> startSurveillance(int cameraId) async {
-    final response = await _client.post(
+    final response = await _post(
       _uri('/surveillance/start'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'camera_id': cameraId}),
@@ -73,27 +95,27 @@ class SecurityService {
   }
 
   Future<SurveillanceStatusModel> stopSurveillance() async {
-    final response = await _client.post(_uri('/surveillance/stop'));
+    final response = await _post(_uri('/surveillance/stop'));
     _ensureSuccess(response);
     return SurveillanceStatusModel.fromJson(_jsonMap(response));
   }
 
   Future<LatestAnalysisModel?> latestAnalysis() async {
-    final response = await _client.get(_uri('/surveillance/latest'));
+    final response = await _get(_uri('/surveillance/latest'));
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);
     return LatestAnalysisModel.fromJson(_jsonMap(response));
   }
 
   Future<Uint8List?> liveFrame() async {
-    final response = await _client.get(_uri('/surveillance/frame'));
+    final response = await _get(_uri('/surveillance/frame'));
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);
     return response.bodyBytes;
   }
 
   Future<List<ZoneModel>> listZones(int cameraId) async {
-    final response = await _client.get(
+    final response = await _get(
       _uri('/zones', {
         'camera_id': cameraId.toString(),
         'include_inactive': 'true',
@@ -110,7 +132,7 @@ class SecurityService {
     required String name,
     required List<ZonePointModel> points,
   }) async {
-    final response = await _client.post(
+    final response = await _post(
       _uri('/zones'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
@@ -124,7 +146,7 @@ class SecurityService {
   }
 
   Future<ZoneModel> setZoneActive(int zoneId, bool isActive) async {
-    final response = await _client.patch(
+    final response = await _patch(
       _uri('/zones/$zoneId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'is_active': isActive}),
@@ -134,7 +156,7 @@ class SecurityService {
   }
 
   Future<void> deleteZone(int zoneId) async {
-    final response = await _client.delete(_uri('/zones/$zoneId'));
+    final response = await _delete(_uri('/zones/$zoneId'));
     _ensureSuccess(response);
   }
 
@@ -166,40 +188,38 @@ class SecurityService {
     } else {
       throw const ApiException('Selected video data is not available.');
     }
-    final streamed = await _client.send(request);
+    final streamed = await _client.send(request).timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     _ensureSuccess(response);
     return VideoAnalysisStatusModel.fromJson(_jsonMap(response));
   }
 
   Future<VideoAnalysisStatusModel> videoStatus(String jobId) async {
-    final response = await _client.get(_uri('/video-analysis/$jobId/status'));
+    final response = await _get(_uri('/video-analysis/$jobId/status'));
     _ensureSuccess(response);
     return VideoAnalysisStatusModel.fromJson(_jsonMap(response));
   }
 
   Future<VideoAnalysisResultsModel> videoResults(String jobId) async {
-    final response = await _client.get(_uri('/video-analysis/$jobId/results'));
+    final response = await _get(_uri('/video-analysis/$jobId/results'));
     _ensureSuccess(response);
     return VideoAnalysisResultsModel.fromJson(_jsonMap(response));
   }
 
   Future<Uint8List?> videoFrame(String jobId) async {
-    final response = await _client.get(_uri('/video-analysis/$jobId/frame'));
+    final response = await _get(_uri('/video-analysis/$jobId/frame'));
     if (response.statusCode == 404) return null;
     _ensureSuccess(response);
     return response.bodyBytes;
   }
 
   Future<void> deleteVideoJob(String jobId) async {
-    final response = await _client.delete(_uri('/video-analysis/$jobId'));
+    final response = await _delete(_uri('/video-analysis/$jobId'));
     _ensureSuccess(response);
   }
 
   Future<List<DetectionLogModel>> listLogs({int limit = 100}) async {
-    final response = await _client.get(
-      _uri('/logs', {'limit': limit.toString()}),
-    );
+    final response = await _get(_uri('/logs', {'limit': limit.toString()}));
     _ensureSuccess(response);
     return _jsonList(response)
         .map((item) => DetectionLogModel.fromJson(item as Map<String, dynamic>))
@@ -207,19 +227,17 @@ class SecurityService {
   }
 
   Future<void> deleteLog(int logId) async {
-    final response = await _client.delete(_uri('/logs/$logId'));
+    final response = await _delete(_uri('/logs/$logId'));
     _ensureSuccess(response);
   }
 
   Future<void> deleteAllLogs() async {
-    final response = await _client.delete(_uri('/logs/all'));
+    final response = await _delete(_uri('/logs/all'));
     _ensureSuccess(response);
   }
 
   Future<List<AlertModel>> listAlerts({int limit = 100}) async {
-    final response = await _client.get(
-      _uri('/alerts', {'limit': limit.toString()}),
-    );
+    final response = await _get(_uri('/alerts', {'limit': limit.toString()}));
     _ensureSuccess(response);
     return _jsonList(
       response,
@@ -227,7 +245,7 @@ class SecurityService {
   }
 
   Future<AlertModel> setAlertRead(int alertId, bool isRead) async {
-    final response = await _client.patch(
+    final response = await _patch(
       _uri('/alerts/$alertId/read'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'is_read': isRead}),
@@ -237,12 +255,12 @@ class SecurityService {
   }
 
   Future<void> deleteAlert(int alertId) async {
-    final response = await _client.delete(_uri('/alerts/$alertId'));
+    final response = await _delete(_uri('/alerts/$alertId'));
     _ensureSuccess(response);
   }
 
   Future<void> deleteAllAlerts() async {
-    final response = await _client.delete(_uri('/alerts/all'));
+    final response = await _delete(_uri('/alerts/all'));
     _ensureSuccess(response);
   }
 

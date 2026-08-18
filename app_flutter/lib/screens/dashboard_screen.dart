@@ -12,7 +12,6 @@ import '../widgets/app_page.dart';
 import '../widgets/empty_panel.dart';
 import '../widgets/header_block.dart';
 import '../widgets/section_header.dart';
-import '../widgets/status_badge.dart';
 import '../widgets/status_tile.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -40,6 +39,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       widget.securityService ?? SecurityService();
   Timer? _timer;
   bool _online = false;
+  bool _refreshInFlight = false;
+  int _refreshFailures = 0;
   int? _memberCount;
   int? _unreadAlerts;
   SurveillanceStatusModel? _status;
@@ -60,6 +61,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
+    if (_refreshInFlight) return;
+    _refreshInFlight = true;
     try {
       final values = await Future.wait([
         _security.health(),
@@ -73,6 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final logs = values[4] as List<DetectionLogModel>;
       setState(() {
         _online = true;
+        _refreshFailures = 0;
         _memberCount = (values[1] as List).length;
         _status = values[2] as SurveillanceStatusModel;
         _unreadAlerts = alerts.where((alert) => !alert.isRead).length;
@@ -81,11 +85,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     } catch (_) {
       if (mounted) {
+        _refreshFailures += 1;
+        if (_refreshFailures < 3) return;
         setState(() {
           _online = false;
           _status = null;
         });
       }
+    } finally {
+      _refreshInFlight = false;
     }
   }
 
@@ -101,11 +109,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           subtitle:
               'Monitor backend health, camera activity, recognition coverage, and recent alert activity.',
           icon: Icons.security,
-          trailing: StatusBadge(
-            label: _online ? 'Online' : 'Offline',
-            icon: _online ? Icons.cloud_done_outlined : Icons.cloud_off,
-            tone: _online ? StatusBadgeTone.success : StatusBadgeTone.danger,
-          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         if (!_online) ...[
@@ -122,41 +125,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: AppSpacing.lg),
         ],
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final isDesktop = constraints.maxWidth >= AppBreakpoints.desktop;
-            final summary = _SystemSummaryCard(
-              online: _online,
-              status: _status,
-            );
-            final actions = _QuickActionsCard(
-              onStartSurveillance: widget.onStartSurveillance,
-              onRegisterPerson: widget.onRegisterPerson,
-              onViewLogs: widget.onViewLogs,
-            );
-
-            if (!isDesktop) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  summary,
-                  const SizedBox(height: AppSpacing.md),
-                  actions,
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 3, child: summary),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(flex: 2, child: actions),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: AppSpacing.lg),
         LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= AppBreakpoints.compact;
@@ -193,7 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisCount: isWide ? 4 : 2,
                 crossAxisSpacing: AppSpacing.md,
                 mainAxisSpacing: AppSpacing.md,
-                mainAxisExtent: isWide ? 140 : 152,
+                mainAxisExtent: isWide ? 124 : 136,
               ),
               itemCount: cards.length,
               itemBuilder: (context, index) => cards[index],
@@ -236,121 +204,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _SystemSummaryCard extends StatelessWidget {
-  const _SystemSummaryCard({
-    required this.online,
-    required this.status,
-  });
-
-  final bool online;
-  final SurveillanceStatusModel? status;
-
-  @override
-  Widget build(BuildContext context) {
-    final running = status?.running == true;
-    final statusText = running
-        ? 'Live surveillance is running'
-        : online
-            ? 'Backend ready, camera stopped'
-            : 'Backend connection unavailable';
-    final detail = running
-        ? '${status!.framesProcessed} frames processed at ${status!.fps.toStringAsFixed(1)} FPS'
-        : online
-            ? 'Start surveillance when you are ready to monitor the camera.'
-            : 'Check that the backend server is running and reachable.';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SectionHeader(
-              title: 'System readiness',
-              subtitle: detail,
-              trailing: StatusBadge(
-                label: running
-                    ? 'Monitoring'
-                    : online
-                        ? 'Ready'
-                        : 'Offline',
-                icon: running
-                    ? Icons.visibility
-                    : online
-                        ? Icons.check_circle_outline
-                        : Icons.error_outline,
-                tone: running || online
-                    ? StatusBadgeTone.success
-                    : StatusBadgeTone.danger,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              statusText,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppColors.text,
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickActionsCard extends StatelessWidget {
-  const _QuickActionsCard({
-    required this.onStartSurveillance,
-    required this.onRegisterPerson,
-    required this.onViewLogs,
-  });
-
-  final VoidCallback? onStartSurveillance;
-  final VoidCallback? onRegisterPerson;
-  final VoidCallback? onViewLogs;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SectionHeader(
-              title: 'Quick actions',
-              subtitle: 'Jump to the main operational workflows.',
-            ),
-            FilledButton.icon(
-              onPressed: onStartSurveillance,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start surveillance'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: onRegisterPerson,
-              icon: const Icon(Icons.person_add_alt_1),
-              label: const Text('Register person'),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            OutlinedButton.icon(
-              onPressed: onViewLogs,
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('View logs'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _RecentAlertsPanel extends StatelessWidget {
-  const _RecentAlertsPanel({
-    required this.alerts,
-    required this.onViewLogs,
-  });
+  const _RecentAlertsPanel({required this.alerts, required this.onViewLogs});
 
   final List<AlertModel> alerts;
   final VoidCallback? onViewLogs;
@@ -362,7 +217,6 @@ class _RecentAlertsPanel extends StatelessWidget {
       children: [
         SectionHeader(
           title: 'Recent alerts',
-          subtitle: 'Latest persistent alerts from live surveillance.',
           trailing: TextButton.icon(
             onPressed: onViewLogs,
             icon: const Icon(Icons.open_in_new),
@@ -391,18 +245,13 @@ class _RecentAlertsPanel extends StatelessWidget {
                     alert.isRead
                         ? Icons.notifications_none
                         : Icons.notification_important,
-                    color:
-                        alert.isRead ? AppColors.textMuted : AppColors.danger,
+                    color: alert.isRead
+                        ? AppColors.textMuted
+                        : AppColors.danger,
                   ),
                   title: Text(alert.message),
                   subtitle: Text(
                     '${alert.cameraName} · ${formatBackendTimestamp(alert.createdAt)}',
-                  ),
-                  trailing: StatusBadge(
-                    label: alert.isRead ? 'Read' : 'Unread',
-                    tone: alert.isRead
-                        ? StatusBadgeTone.neutral
-                        : StatusBadgeTone.danger,
                   ),
                 ),
               ),
@@ -423,10 +272,7 @@ class _LatestDetectionPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionHeader(
-          title: 'Latest detection',
-          subtitle: 'Most recent persistent live-camera event.',
-        ),
+        const SectionHeader(title: 'Latest detection'),
         if (latest == null)
           const EmptyPanel(
             icon: Icons.fact_check_outlined,
@@ -443,15 +289,13 @@ class _LatestDetectionPanel extends StatelessWidget {
                     ? Icons.verified_user
                     : Icons.warning_amber,
               ),
-              title: Text(latest!.memberName ?? 'Unknown person'),
+              title: Text(
+                latest!.status == 'known'
+                    ? '${latest!.memberName ?? 'Known person'} detected'
+                    : 'Unknown Person 01 detected',
+              ),
               subtitle: Text(
                 '${latest!.cameraName} · ${formatBackendTimestamp(latest!.detectedAt)}',
-              ),
-              trailing: StatusBadge(
-                label: latest!.status,
-                tone: latest!.status == 'known'
-                    ? StatusBadgeTone.success
-                    : StatusBadgeTone.warning,
               ),
             ),
           ),

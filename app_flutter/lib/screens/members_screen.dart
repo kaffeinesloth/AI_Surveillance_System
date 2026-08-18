@@ -91,11 +91,6 @@ class _MembersScreenState extends State<MembersScreen> {
           title: 'Members',
           subtitle: 'Review registered people and manage saved face images.',
           icon: Icons.people_alt,
-          trailing: IconButton(
-            onPressed: _refreshMembers,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         FutureBuilder<List<MemberModel>>(
@@ -121,19 +116,11 @@ class _MembersScreenState extends State<MembersScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _MembersToolbar(
-                  totalCount: members.length,
-                  visibleCount: visibleMembers.length,
                   searchController: _searchController,
-                  onRefresh: _refreshMembers,
                   onClearSearch: _query.isEmpty ? null : _clearSearch,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                SectionHeader(
-                  title: 'Registered people',
-                  subtitle: members.isEmpty
-                      ? 'No known people are available to recognition yet.'
-                      : '${visibleMembers.length} of ${members.length} people shown.',
-                ),
+                const SectionHeader(title: 'Registered people'),
                 if (members.isEmpty)
                   const EmptyPanel(
                     icon: Icons.people_outline,
@@ -228,87 +215,27 @@ class _MembersScreenState extends State<MembersScreen> {
 
 class _MembersToolbar extends StatelessWidget {
   const _MembersToolbar({
-    required this.totalCount,
-    required this.visibleCount,
     required this.searchController,
-    required this.onRefresh,
     required this.onClearSearch,
   });
 
-  final int totalCount;
-  final int visibleCount;
   final TextEditingController searchController;
-  final VoidCallback onRefresh;
   final VoidCallback? onClearSearch;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final searchField = TextField(
-              controller: searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                labelText: 'Search members',
-                hintText: 'Name, image count, or registered date',
-                suffixIcon: onClearSearch == null
-                    ? null
-                    : IconButton(
-                        onPressed: onClearSearch,
-                        icon: const Icon(Icons.close),
-                        tooltip: 'Clear search',
-                      ),
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
+        labelText: 'Search members',
+        suffixIcon: onClearSearch == null
+            ? null
+            : IconButton(
+                onPressed: onClearSearch,
+                icon: const Icon(Icons.close),
+                tooltip: 'Clear search',
               ),
-            );
-            final summary = Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                StatusBadge(
-                  icon: Icons.people_alt_outlined,
-                  label: '$totalCount total',
-                ),
-                if (visibleCount != totalCount)
-                  StatusBadge(
-                    icon: Icons.filter_alt_outlined,
-                    label: '$visibleCount shown',
-                    tone: StatusBadgeTone.warning,
-                  ),
-              ],
-            );
-            final refresh = OutlinedButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh'),
-            );
-
-            if (constraints.maxWidth < AppBreakpoints.compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  searchField,
-                  const SizedBox(height: AppSpacing.md),
-                  summary,
-                  const SizedBox(height: AppSpacing.md),
-                  refresh,
-                ],
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(flex: 5, child: searchField),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(flex: 3, child: summary),
-                const SizedBox(width: AppSpacing.lg),
-                refresh,
-              ],
-            );
-          },
-        ),
       ),
     );
   }

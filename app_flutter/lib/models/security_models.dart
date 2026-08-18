@@ -213,7 +213,6 @@ class TemporaryVideoEventModel {
   const TemporaryVideoEventModel({
     required this.frameIndex,
     required this.timestampSeconds,
-    required this.trackId,
     required this.status,
     required this.eventType,
     this.memberName,
@@ -224,7 +223,6 @@ class TemporaryVideoEventModel {
       TemporaryVideoEventModel(
         frameIndex: json['frame_index'] as int,
         timestampSeconds: (json['timestamp_seconds'] as num).toDouble(),
-        trackId: json['track_id'] as int,
         status: json['status'] as String,
         eventType: json['event_type'] as String,
         memberName: json['member_name'] as String?,
@@ -233,7 +231,6 @@ class TemporaryVideoEventModel {
 
   final int frameIndex;
   final double timestampSeconds;
-  final int trackId;
   final String status;
   final String eventType;
   final String? memberName;
@@ -275,9 +272,11 @@ class VideoAnalysisResultsModel {
 class DetectionLogModel {
   const DetectionLogModel({
     required this.id,
+    required this.sessionId,
     required this.status,
     required this.cameraName,
     required this.detectedAt,
+    this.trackId,
     this.memberName,
     this.confidence,
   });
@@ -285,6 +284,8 @@ class DetectionLogModel {
   factory DetectionLogModel.fromJson(Map<String, dynamic> json) =>
       DetectionLogModel(
         id: json['id'] as int,
+        sessionId: json['session_id'] as int,
+        trackId: json['track_id'] as int?,
         status: json['status'] as String,
         memberName: json['member_name'] as String?,
         cameraName: json['camera_name'] as String,
@@ -293,6 +294,8 @@ class DetectionLogModel {
       );
 
   final int id;
+  final int sessionId;
+  final int? trackId;
   final String status;
   final String? memberName;
   final String cameraName;
@@ -303,6 +306,7 @@ class DetectionLogModel {
 class AlertModel {
   const AlertModel({
     required this.id,
+    required this.detectionLogId,
     required this.alertType,
     required this.message,
     required this.cameraName,
@@ -313,6 +317,7 @@ class AlertModel {
 
   factory AlertModel.fromJson(Map<String, dynamic> json) => AlertModel(
     id: json['id'] as int,
+    detectionLogId: json['detection_log_id'] as int?,
     alertType: json['alert_type'] as String,
     message: json['message'] as String,
     cameraName: json['camera_name'] as String,
@@ -322,6 +327,7 @@ class AlertModel {
   );
 
   final int id;
+  final int? detectionLogId;
   final String alertType;
   final String message;
   final String cameraName;

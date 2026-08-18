@@ -7,10 +7,12 @@ class AppPage extends StatelessWidget {
     super.key,
     required this.children,
     this.maxWidth = AppLayout.pageMaxWidth,
+    this.alignment,
   });
 
   final List<Widget> children;
   final double maxWidth;
+  final AlignmentGeometry? alignment;
 
   @override
   Widget build(BuildContext context) {
@@ -30,9 +32,11 @@ class AppPage extends StatelessWidget {
             AppSpacing.xxl,
           ),
           child: Align(
-            alignment: constraints.maxWidth >= AppBreakpoints.desktop
-                ? Alignment.topLeft
-                : Alignment.topCenter,
+            alignment:
+                alignment ??
+                (constraints.maxWidth >= AppBreakpoints.desktop
+                    ? Alignment.topLeft
+                    : Alignment.topCenter),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: maxWidth),
               child: Column(

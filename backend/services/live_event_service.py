@@ -103,6 +103,11 @@ class LiveEventRecorder:
         for track_id in stale_track_ids:
             self._track_states.pop(track_id, None)
 
+        visible_track_ids = {track.track_id for track in analysis.tracks}
+        for track_id, state in self._track_states.items():
+            if track_id not in visible_track_ids:
+                state.zone_dwell = None
+
         for track in analysis.tracks:
             state = self._track_states.setdefault(
                 track.track_id,
@@ -141,7 +146,7 @@ class LiveEventRecorder:
                         (
                             track,
                             AlertType.UNKNOWN_PERSON,
-                            f"Unknown person detected on track {track.track_id}",
+                            "Unknown person detected",
                         )
                     )
                 self._collect_restricted_zone_alerts(
@@ -173,73 +178,55 @@ class LiveEventRecorder:
                     for alert in pending_alerts
                     if alert[0] is track
                 ]
-                is_alert = bool(track_alerts)
-                log_snapshot_path = snapshot_path if is_alert else None
-                log_cursor = self.connection.execute(
-                    """
-                    INSERT INTO detection_logs (
-                        session_id,
-                        camera_id,
-                        member_id,
-                        track_id,
-                        status,
-                        confidence,
-                        snapshot_path,
-                        detected_at
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        self.session_id,
-                        self.camera_id,
-                        track.member_id,
-                        track.track_id,
-                        track.status.value,
-                        track.similarity,
-                        log_snapshot_path,
-                        detected_at,
-                    ),
-                )
-                detection_log_id = int(log_cursor.lastrowid)
+                if not track_alerts:
+                    self._insert_detection_log(track, None, detected_at)
+                    continue
 
-                if is_alert and snapshot_path is not None:
-                    for _, alert_type, message in track_alerts:
-                        alert_cursor = self.connection.execute(
-                            """
-                            INSERT INTO alerts (
-                                session_id,
-                                camera_id,
-                                detection_log_id,
-                                member_id,
-                                alert_type,
-                                message,
-                                confidence,
-                                snapshot_path,
-                                created_at
-                            )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                self.session_id,
-                                self.camera_id,
-                                detection_log_id,
-                                None,
-                                alert_type.value,
-                                message,
-                                track.similarity,
-                                snapshot_path,
-                                detected_at,
-                            ),
+                if snapshot_path is None:
+                    continue
+
+                for _, alert_type, message in track_alerts:
+                    detection_log_id = self._insert_detection_log(
+                        track,
+                        snapshot_path,
+                        detected_at,
+                    )
+                    alert_cursor = self.connection.execute(
+                        """
+                        INSERT INTO alerts (
+                            session_id,
+                            camera_id,
+                            detection_log_id,
+                            member_id,
+                            alert_type,
+                            message,
+                            confidence,
+                            snapshot_path,
+                            created_at
                         )
-                        persisted_alerts.append(
-                            PersistedAlertEvent(
-                                alert_id=int(alert_cursor.lastrowid),
-                                detection_log_id=detection_log_id,
-                                track_id=track.track_id,
-                                snapshot_path=snapshot_path,
-                                alert_type=alert_type,
-                            )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            self.session_id,
+                            self.camera_id,
+                            detection_log_id,
+                            None,
+                            alert_type.value,
+                            message,
+                            track.similarity,
+                            snapshot_path,
+                            detected_at,
+                        ),
+                    )
+                    persisted_alerts.append(
+                        PersistedAlertEvent(
+                            alert_id=int(alert_cursor.lastrowid),
+                            detection_log_id=detection_log_id,
+                            track_id=track.track_id,
+                            snapshot_path=snapshot_path,
+                            alert_type=alert_type,
                         )
+                    )
             self.connection.commit()
         except Exception:
             self.connection.rollback()
@@ -259,6 +246,39 @@ class LiveEventRecorder:
                 state.last_alert_at = analysis.timestamp_seconds
                 state.unknown_alert_recorded = True
         return persisted_alerts
+
+    def _insert_detection_log(
+        self,
+        track: TrackAnalysis,
+        snapshot_path: str | None,
+        detected_at: str,
+    ) -> int:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO detection_logs (
+                session_id,
+                camera_id,
+                member_id,
+                track_id,
+                status,
+                confidence,
+                snapshot_path,
+                detected_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                self.session_id,
+                self.camera_id,
+                track.member_id,
+                track.track_id,
+                track.status.value,
+                track.similarity,
+                snapshot_path,
+                detected_at,
+            ),
+        )
+        return int(cursor.lastrowid)
 
     def _unknown_alert_due(
         self,
@@ -309,10 +329,7 @@ class LiveEventRecorder:
                 (
                     track,
                     AlertType.RESTRICTED_AREA,
-                    (
-                        "Suspicious activity from unknown person "
-                        f"{track.track_id:02d} in {zone.name}"
-                    ),
+                    f"Unknown person entered {zone.name}",
                 )
             )
             dwell.last_alert_at = timestamp

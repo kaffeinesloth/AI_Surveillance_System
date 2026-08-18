@@ -262,7 +262,7 @@ class LiveEventRecorderTestCase(unittest.TestCase):
         )
         self.assertEqual(
             rows[1]["message"],
-            "Suspicious activity from unknown person 01 in Storage",
+            "Unknown person entered Storage",
         )
 
     def test_restricted_zone_dwell_resets_after_unknown_leaves_zone(self):
@@ -333,6 +333,115 @@ class LiveEventRecorderTestCase(unittest.TestCase):
 
         self.assertEqual(
             [event.alert_type.value for event in events],
+            ["restricted_area"],
+        )
+
+    def test_multiple_restricted_zones_create_separate_log_rows(self):
+        first_zone = RestrictedZone(
+            id=10,
+            camera_id=self.camera_id,
+            name="Backdoor",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        second_zone = RestrictedZone(
+            id=11,
+            camera_id=self.camera_id,
+            name="Brush Door",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[first_zone, second_zone],
+            restricted_zone_dwell_seconds=1,
+        )
+        inside = make_track()
+
+        recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        events = recorder.process(make_analysis(1, 1.0, inside), b"jpeg-1")
+
+        self.assertEqual(
+            [event.alert_type.value for event in events],
+            ["restricted_area", "restricted_area"],
+        )
+        rows = self.connection.execute(
+            """
+            SELECT alert_type, message, detection_log_id
+            FROM alerts
+            ORDER BY id
+            """
+        ).fetchall()
+        restricted_rows = [
+            row for row in rows if row["alert_type"] == "restricted_area"
+        ]
+        self.assertEqual(
+            [row["message"] for row in restricted_rows],
+            [
+                "Unknown person entered Backdoor",
+                "Unknown person entered Brush Door",
+            ],
+        )
+        self.assertEqual(
+            len({row["detection_log_id"] for row in restricted_rows}),
+            2,
+        )
+        self.assertEqual(self.counts(), (3, 3))
+
+    def test_restricted_zone_dwell_resets_after_unknown_disappears(self):
+        zone = RestrictedZone(
+            id=12,
+            camera_id=self.camera_id,
+            name="Door",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[zone],
+            restricted_zone_dwell_seconds=1,
+        )
+        inside = make_track()
+
+        recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        first_entry = recorder.process(make_analysis(1, 1.0, inside), b"jpeg-1")
+        recorder.process(make_analysis(2, 2.0), b"jpeg-2")
+        not_due_after_return = recorder.process(
+            make_analysis(3, 3.0, inside),
+            b"jpeg-3",
+        )
+        second_entry = recorder.process(
+            make_analysis(4, 4.0, inside),
+            b"jpeg-4",
+        )
+
+        self.assertEqual(
+            [event.alert_type.value for event in first_entry],
+            ["restricted_area"],
+        )
+        self.assertEqual(not_due_after_return, [])
+        self.assertEqual(
+            [event.alert_type.value for event in second_entry],
             ["restricted_area"],
         )
 

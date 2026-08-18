@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
-import '../core/timestamp_formatter.dart';
 import '../models/member_model.dart';
 import '../services/member_service.dart';
 import '../theme/app_tokens.dart';
@@ -30,7 +29,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   List<PlatformFile> _selectedImages = [];
   RegisterMemberResult? _lastResult;
-  late Future<List<MemberModel>> _membersFuture;
   bool _isSubmitting = false;
   bool _hasSubmitted = false;
   String? _formError;
@@ -42,16 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    _membersFuture = _memberService.listMembers();
     _nameController.addListener(_onFormChanged);
-  }
-
-  @override
-  void didUpdateWidget(covariant RegisterScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.refreshToken != widget.refreshToken) {
-      _refreshMembers();
-    }
   }
 
   @override
@@ -108,12 +97,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  void _refreshMembers() {
-    setState(() {
-      _membersFuture = _memberService.listMembers();
-    });
-  }
-
   Future<void> _registerMember() async {
     final name = _nameController.text.trim();
     final validationMessage = _validationMessage();
@@ -141,7 +124,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _selectedImages = [];
         _lastResult = result;
-        _membersFuture = _memberService.listMembers();
         _formError = null;
         _hasSubmitted = false;
       });
@@ -177,43 +159,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       message: message,
       tone: isError ? AppMessageTone.danger : AppMessageTone.success,
     );
-  }
-
-  Future<void> _deleteMember(MemberModel member) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete member'),
-          content: Text('Delete ${member.name} and saved registration files?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    try {
-      await _memberService.deleteMember(member.id);
-      if (!mounted) return;
-      _refreshMembers();
-      widget.onMembersChanged();
-      _showMessage('Deleted ${member.name}.');
-    } catch (error) {
-      if (!mounted) return;
-      _showMessage(friendlyErrorMessage(error), isError: true);
-    }
   }
 
   @override
@@ -269,28 +214,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   : const Icon(Icons.save_outlined),
               label: Text(_isSubmitting ? 'Registering...' : 'Register'),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              _canSubmit
-                  ? 'Ready to submit ${_selectedImages.length} image${_selectedImages.length == 1 ? '' : 's'}.'
-                  : 'A name and at least one face image are required.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
-            ),
           ],
         ),
       ),
     );
-    final peoplePanel = _RegisteredPeoplePanel(
-      membersFuture: _membersFuture,
-      onRefresh: _refreshMembers,
-      onDelete: _deleteMember,
-    );
-
     return AppPage(
-      maxWidth: AppLayout.dataMaxWidth,
+      maxWidth: AppLayout.formMaxWidth,
+      alignment: Alignment.topCenter,
       children: [
         const HeaderBlock(
           title: 'Register',
@@ -298,241 +228,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           icon: Icons.person_add_alt_1,
         ),
         const SizedBox(height: AppSpacing.lg),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < AppBreakpoints.desktop) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  formCard,
-                  const SizedBox(height: AppSpacing.lg),
-                  peoplePanel,
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 5, child: formCard),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(flex: 4, child: peoplePanel),
-              ],
-            );
-          },
-        ),
+        formCard,
       ],
-    );
-  }
-}
-
-class _RegisteredPeoplePanel extends StatelessWidget {
-  const _RegisteredPeoplePanel({
-    required this.membersFuture,
-    required this.onRefresh,
-    required this.onDelete,
-  });
-
-  final Future<List<MemberModel>> membersFuture;
-  final VoidCallback onRefresh;
-  final ValueChanged<MemberModel> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Registered people',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                IconButton.filledTonal(
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh',
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.md),
-            FutureBuilder<List<MemberModel>>(
-              future: membersFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return _InlineErrorPanel(
-                    message: friendlyErrorMessage(
-                      snapshot.error ?? 'Unknown error',
-                    ),
-                    onRetry: onRefresh,
-                  );
-                }
-
-                final members = snapshot.data ?? const [];
-                if (members.isEmpty) {
-                  return const _InlineEmptyPanel();
-                }
-
-                return Column(
-                  children: members
-                      .map(
-                        (member) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _CompactMemberTile(
-                            member: member,
-                            onDelete: () => onDelete(member),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactMemberTile extends StatelessWidget {
-  const _CompactMemberTile({required this.member, required this.onDelete});
-
-  final MemberModel member;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: AppColors.tealSoft,
-              foregroundColor: AppColors.teal,
-              child: Text(_initialsFor(member.name)),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    member.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${member.imageCount} image(s) - ${formatBackendTimestamp(member.createdAt)}',
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineEmptyPanel extends StatelessWidget {
-  const _InlineEmptyPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.people_outline,
-              size: 32,
-              color: AppColors.textSubtle,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'No registered people',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineErrorPanel extends StatelessWidget {
-  const _InlineErrorPanel({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.dangerBorder),
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.danger),
-              ),
-            ),
-            IconButton(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Retry',
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -958,16 +655,4 @@ class _SelectedImageTile extends StatelessWidget {
     if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
     return '${(kb / 1024).toStringAsFixed(1)} MB';
   }
-}
-
-String _initialsFor(String name) {
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.isEmpty || parts.first.isEmpty) {
-    return '?';
-  }
-  if (parts.length == 1) {
-    return parts.first.characters.first.toUpperCase();
-  }
-  return '${parts.first.characters.first}${parts.last.characters.first}'
-      .toUpperCase();
 }

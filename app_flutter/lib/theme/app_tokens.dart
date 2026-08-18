@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 class AppColors {
   const AppColors._();
 
-  static const teal = Color(0xFF0F766E);
-  static const tealDark = Color(0xFF115E59);
-  static const tealSoft = Color(0xFFE0F2F1);
-  static const tealMuted = Color(0xFFCFEFEB);
+  static const teal = Color(0xFF2563EB);
+  static const tealDark = Color(0xFF1E40AF);
+  static const tealSoft = Color(0xFFEFF6FF);
+  static const tealMuted = Color(0xFFBFDBFE);
 
   static const background = Color(0xFFF6F8FA);
   static const surface = Colors.white;

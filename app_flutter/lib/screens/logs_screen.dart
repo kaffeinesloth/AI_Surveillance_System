@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/timestamp_formatter.dart';
@@ -8,7 +10,6 @@ import '../widgets/app_message.dart';
 import '../widgets/app_page.dart';
 import '../widgets/empty_panel.dart';
 import '../widgets/header_block.dart';
-import '../widgets/status_badge.dart';
 
 class LogsScreen extends StatefulWidget {
   const LogsScreen({super.key, this.service});
@@ -21,6 +22,7 @@ class LogsScreen extends StatefulWidget {
 
 class _LogsScreenState extends State<LogsScreen> {
   late final SecurityService _service = widget.service ?? SecurityService();
+  Timer? _refreshTimer;
   List<DetectionLogModel> _logs = const [];
   List<AlertModel> _alerts = const [];
   Set<int> _selectedLogIds = const {};
@@ -28,24 +30,37 @@ class _LogsScreenState extends State<LogsScreen> {
   bool _loading = true;
   bool _deletingLogs = false;
   bool _deletingAlerts = false;
+  bool _refreshInFlight = false;
+  int _refreshFailures = 0;
   String? _error;
 
   bool get _busy => _loading || _deletingLogs || _deletingAlerts;
-  int get _unknownLogCount =>
-      _logs.where((log) => log.status != 'known').length;
-  int get _unreadAlertCount => _alerts.where((alert) => !alert.isRead).length;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _refreshFromTimer(),
+    );
   }
 
-  Future<void> _refresh() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refresh({bool background = false}) async {
+    if (_refreshInFlight) return;
+    _refreshInFlight = true;
+    if (!background) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final values = await Future.wait([
         _service.listLogs(),
@@ -55,6 +70,8 @@ class _LogsScreenState extends State<LogsScreen> {
       setState(() {
         _logs = values[0] as List<DetectionLogModel>;
         _alerts = values[1] as List<AlertModel>;
+        _refreshFailures = 0;
+        _error = null;
         _selectedLogIds = _selectedLogIds
             .where((id) => _logs.any((log) => log.id == id))
             .toSet();
@@ -63,10 +80,23 @@ class _LogsScreenState extends State<LogsScreen> {
             .toSet();
       });
     } catch (error) {
-      if (mounted) setState(() => _error = friendlyErrorMessage(error));
+      if (mounted) {
+        _refreshFailures += 1;
+        if (!background || _refreshFailures >= 3) {
+          setState(() => _error = friendlyErrorMessage(error));
+        }
+      }
     } finally {
+      _refreshInFlight = false;
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _refreshFromTimer() async {
+    if (_busy || _selectedLogIds.isNotEmpty || _selectedAlertIds.isNotEmpty) {
+      return;
+    }
+    await _refresh(background: true);
   }
 
   Future<void> _toggleRead(AlertModel alert) async {
@@ -203,8 +233,9 @@ class _LogsScreenState extends State<LogsScreen> {
       if (!mounted) return;
       showAppSnackBar(
         context,
-        message:
-            count == 1 ? 'Deleted selected alert.' : 'Deleted $count alerts.',
+        message: count == 1
+            ? 'Deleted selected alert.'
+            : 'Deleted $count alerts.',
         tone: AppMessageTone.success,
       );
     } catch (error) {
@@ -279,6 +310,7 @@ class _LogsScreenState extends State<LogsScreen> {
     final listHeight = (MediaQuery.sizeOf(context).height - 330)
         .clamp(420.0, 760.0)
         .toDouble();
+    final unknownLabels = _UnknownPersonLabels(logs: _logs, alerts: _alerts);
 
     return DefaultTabController(
       length: 2,
@@ -290,18 +322,6 @@ class _LogsScreenState extends State<LogsScreen> {
             subtitle:
                 'Only live-webcam events are saved. Uploaded-video events never appear here.',
             icon: Icons.receipt_long,
-            trailing: IconButton(
-              tooltip: 'Refresh',
-              onPressed: _busy ? null : _refresh,
-              icon: const Icon(Icons.refresh),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _LogsSummaryBar(
-            logCount: _logs.length,
-            unknownLogCount: _unknownLogCount,
-            alertCount: _alerts.length,
-            unreadAlertCount: _unreadAlertCount,
           ),
           const SizedBox(height: AppSpacing.md),
           if (_error != null)
@@ -352,6 +372,7 @@ class _LogsScreenState extends State<LogsScreen> {
                       children: [
                         _DetectionLogsTab(
                           logs: _logs,
+                          unknownLabels: unknownLabels,
                           loading: _loading,
                           deleting: _deletingLogs,
                           selectedIds: _selectedLogIds,
@@ -360,6 +381,7 @@ class _LogsScreenState extends State<LogsScreen> {
                         ),
                         _AlertsTab(
                           alerts: _alerts,
+                          unknownLabels: unknownLabels,
                           loading: _loading,
                           deleting: _deletingAlerts,
                           selectedIds: _selectedAlertIds,
@@ -380,55 +402,138 @@ class _LogsScreenState extends State<LogsScreen> {
   }
 }
 
-class _LogsSummaryBar extends StatelessWidget {
-  const _LogsSummaryBar({
-    required this.logCount,
-    required this.unknownLogCount,
-    required this.alertCount,
-    required this.unreadAlertCount,
-  });
+class _UnknownPersonLabels {
+  _UnknownPersonLabels({
+    required List<DetectionLogModel> logs,
+    required List<AlertModel> alerts,
+  }) {
+    final unknownLogs = logs.where((log) => log.status != 'known').toList()
+      ..sort((a, b) {
+        final timeComparison = a.detectedAt.compareTo(b.detectedAt);
+        if (timeComparison != 0) return timeComparison;
+        return a.id.compareTo(b.id);
+      });
 
-  final int logCount;
-  final int unknownLogCount;
-  final int alertCount;
-  final int unreadAlertCount;
+    final sessionNextIndexes = <int, int>{};
+    for (final log in unknownLogs) {
+      final trackId = log.trackId;
+      if (trackId != null) {
+        _labelsByLogId[log.id] = _format(trackId);
+        continue;
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: [
-        StatusBadge(
-          icon: Icons.fact_check_outlined,
-          label: '$logCount logs',
-        ),
-        StatusBadge(
-          icon: Icons.person_search,
-          label: '$unknownLogCount unknown',
-          tone: unknownLogCount == 0
-              ? StatusBadgeTone.neutral
-              : StatusBadgeTone.warning,
-        ),
-        StatusBadge(
-          icon: Icons.notifications_outlined,
-          label: '$alertCount alerts',
-        ),
-        StatusBadge(
-          icon: Icons.notification_important,
-          label: '$unreadAlertCount unread',
-          tone: unreadAlertCount == 0
-              ? StatusBadgeTone.neutral
-              : StatusBadgeTone.danger,
-        ),
-      ],
+      final nextIndex = sessionNextIndexes[log.sessionId] ?? 1;
+      _labelsByLogId[log.id] = _format(nextIndex);
+      sessionNextIndexes[log.sessionId] = nextIndex + 1;
+    }
+
+    for (final alert in alerts.where(
+      (alert) =>
+          alert.alertType == 'restricted_area' && alert.detectionLogId != null,
+    )) {
+      _restrictedAlertsByLogId[alert.detectionLogId!] = alert;
+    }
+
+    final unlinkedUnknownAlerts =
+        alerts
+            .where(
+              (alert) =>
+                  _isUnknownAlert(alert) &&
+                  (alert.detectionLogId == null ||
+                      !_labelsByLogId.containsKey(alert.detectionLogId)),
+            )
+            .toList()
+          ..sort((a, b) {
+            final timeComparison = a.createdAt.compareTo(b.createdAt);
+            if (timeComparison != 0) return timeComparison;
+            return a.id.compareTo(b.id);
+          });
+
+    final nextIndex = _labelsByLogId.length + 1;
+    for (final entry in unlinkedUnknownAlerts.indexed) {
+      _labelsByAlertId[entry.$2.id] = _format(nextIndex + entry.$1);
+    }
+  }
+
+  final Map<int, String> _labelsByLogId = {};
+  final Map<int, String> _labelsByAlertId = {};
+  final Map<int, AlertModel> _restrictedAlertsByLogId = {};
+
+  String labelForLog(DetectionLogModel log) {
+    if (log.status == 'known') {
+      return '${log.memberName ?? 'Known person'} detected';
+    }
+    final unknownLabel = _labelsByLogId[log.id] ?? 'Unknown Person';
+    final restrictedAlert = _restrictedAlertsByLogId[log.id];
+    if (restrictedAlert != null) {
+      final areaName = _restrictedAreaName(restrictedAlert.message);
+      if (areaName != null) return '$unknownLabel lingering around $areaName';
+    }
+    return '$unknownLabel detected';
+  }
+
+  String labelForAlert(AlertModel alert) {
+    if (alert.alertType == 'restricted_area') {
+      final areaName = _restrictedAreaName(alert.message);
+      final unknownLabel = _unknownLabelForAlert(alert);
+      if (areaName != null) return '$unknownLabel lingering around $areaName';
+      return '$unknownLabel lingering around a restricted area';
+    }
+    if (alert.alertType == 'unknown_person') {
+      return '${_unknownLabelForAlert(alert)} detected';
+    }
+    if (!_messageMentionsUnknownPerson(alert)) {
+      return _cleanAlertMessage(alert.message);
+    }
+    return '${_unknownLabelForAlert(alert)} detected';
+  }
+
+  String _unknownLabelForAlert(AlertModel alert) {
+    final logId = alert.detectionLogId;
+    if (logId != null && _labelsByLogId.containsKey(logId)) {
+      return _labelsByLogId[logId]!;
+    }
+    return _labelsByAlertId[alert.id] ?? 'Unknown Person';
+  }
+
+  static bool _isUnknownAlert(AlertModel alert) =>
+      alert.alertType == 'unknown_person' ||
+      alert.alertType == 'restricted_area' ||
+      _messageMentionsUnknownPerson(alert);
+
+  static bool _messageMentionsUnknownPerson(AlertModel alert) =>
+      alert.message.toLowerCase().contains('unknown person');
+
+  static String _format(int index) =>
+      'Unknown Person ${index.toString().padLeft(2, '0')}';
+
+  static String _cleanAlertMessage(String message) {
+    return message.replaceAll(
+      RegExp(r'\s+on track\s+\d+', caseSensitive: false),
+      '',
     );
+  }
+
+  static String? _restrictedAreaName(String message) {
+    final cleanMessage = _cleanAlertMessage(message).trim();
+    final enteredMatch = RegExp(
+      r'unknown person entered\s+(.+)$',
+      caseSensitive: false,
+    ).firstMatch(cleanMessage);
+    if (enteredMatch != null) return enteredMatch.group(1)?.trim();
+
+    final inMatch = RegExp(
+      r'unknown person(?:\s+\d+)?\s+in\s+(.+)$',
+      caseSensitive: false,
+    ).firstMatch(cleanMessage);
+    return inMatch?.group(1)?.trim();
   }
 }
 
 class _DetectionLogsTab extends StatelessWidget {
   const _DetectionLogsTab({
     required this.logs,
+    required this.unknownLabels,
     required this.loading,
     required this.deleting,
     required this.selectedIds,
@@ -437,6 +542,7 @@ class _DetectionLogsTab extends StatelessWidget {
   });
 
   final List<DetectionLogModel> logs;
+  final _UnknownPersonLabels unknownLabels;
   final bool loading;
   final bool deleting;
   final Set<int> selectedIds;
@@ -454,7 +560,6 @@ class _DetectionLogsTab extends StatelessWidget {
       children: [
         _TabActionRow(
           title: 'Live detection history',
-          subtitle: 'Known and unknown people detected by live surveillance.',
           action: OutlinedButton.icon(
             onPressed: logs.isEmpty || deleting ? null : onDeleteAll,
             icon: const Icon(Icons.delete_sweep_outlined),
@@ -475,6 +580,7 @@ class _DetectionLogsTab extends StatelessWidget {
                     final log = logs[index];
                     return _DetectionLogRow(
                       log: log,
+                      title: unknownLabels.labelForLog(log),
                       selected: selectedIds.contains(log.id),
                       deleting: deleting,
                       onSelected: (selected) =>
@@ -491,6 +597,7 @@ class _DetectionLogsTab extends StatelessWidget {
 class _AlertsTab extends StatelessWidget {
   const _AlertsTab({
     required this.alerts,
+    required this.unknownLabels,
     required this.loading,
     required this.deleting,
     required this.selectedIds,
@@ -500,6 +607,7 @@ class _AlertsTab extends StatelessWidget {
   });
 
   final List<AlertModel> alerts;
+  final _UnknownPersonLabels unknownLabels;
   final bool loading;
   final bool deleting;
   final Set<int> selectedIds;
@@ -518,7 +626,6 @@ class _AlertsTab extends StatelessWidget {
       children: [
         _TabActionRow(
           title: 'Alert inbox',
-          subtitle: 'Unknown-person alerts requiring review.',
           action: OutlinedButton.icon(
             onPressed: alerts.isEmpty || deleting ? null : onDeleteAll,
             icon: const Icon(Icons.delete_sweep_outlined),
@@ -540,6 +647,7 @@ class _AlertsTab extends StatelessWidget {
                     final alert = alerts[index];
                     return _AlertRow(
                       alert: alert,
+                      title: unknownLabels.labelForAlert(alert),
                       selected: selectedIds.contains(alert.id),
                       deleting: deleting,
                       onSelected: (selected) =>
@@ -555,14 +663,9 @@ class _AlertsTab extends StatelessWidget {
 }
 
 class _TabActionRow extends StatelessWidget {
-  const _TabActionRow({
-    required this.title,
-    required this.subtitle,
-    required this.action,
-  });
+  const _TabActionRow({required this.title, required this.action});
 
   final String title;
-  final String subtitle;
   final Widget action;
 
   @override
@@ -575,16 +678,9 @@ class _TabActionRow extends StatelessWidget {
             Text(
               title,
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.text,
-                  ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
             ),
           ],
         );
@@ -615,12 +711,14 @@ class _TabActionRow extends StatelessWidget {
 class _DetectionLogRow extends StatelessWidget {
   const _DetectionLogRow({
     required this.log,
+    required this.title,
     required this.selected,
     required this.deleting,
     required this.onSelected,
   });
 
   final DetectionLogModel log;
+  final String title;
   final bool selected;
   final bool deleting;
   final ValueChanged<bool> onSelected;
@@ -632,29 +730,13 @@ class _DetectionLogRow extends StatelessWidget {
     return _SelectableRecordCard(
       selected: selected,
       severe: !isKnown,
-      checkbox: Checkbox(
-        value: selected,
-        onChanged: deleting ? null : (value) => onSelected(value ?? false),
-      ),
       icon: Icon(
         isKnown ? Icons.verified_user : Icons.person_search,
         color: isKnown ? AppColors.success : AppColors.warning,
       ),
-      title: log.memberName ?? 'Unknown person',
+      title: title,
       subtitle: log.cameraName,
       timestamp: formatBackendTimestamp(log.detectedAt),
-      badges: [
-        StatusBadge(
-          label: log.status,
-          icon: isKnown ? Icons.check_circle_outline : Icons.warning_amber,
-          tone: isKnown ? StatusBadgeTone.success : StatusBadgeTone.warning,
-        ),
-        if (log.confidence != null)
-          StatusBadge(
-            icon: Icons.percent,
-            label: '${(log.confidence! * 100).toStringAsFixed(1)}%',
-          ),
-      ],
       onTap: deleting ? null : () => onSelected(!selected),
     );
   }
@@ -663,6 +745,7 @@ class _DetectionLogRow extends StatelessWidget {
 class _AlertRow extends StatelessWidget {
   const _AlertRow({
     required this.alert,
+    required this.title,
     required this.selected,
     required this.deleting,
     required this.onSelected,
@@ -670,6 +753,7 @@ class _AlertRow extends StatelessWidget {
   });
 
   final AlertModel alert;
+  final String title;
   final bool selected;
   final bool deleting;
   final ValueChanged<bool> onSelected;
@@ -680,10 +764,6 @@ class _AlertRow extends StatelessWidget {
     return _SelectableRecordCard(
       selected: selected,
       severe: !alert.isRead,
-      checkbox: Checkbox(
-        value: selected,
-        onChanged: deleting ? null : (value) => onSelected(value ?? false),
-      ),
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -708,21 +788,9 @@ class _AlertRow extends StatelessWidget {
             ),
         ],
       ),
-      title: alert.message,
+      title: title,
       subtitle: alert.cameraName,
       timestamp: formatBackendTimestamp(alert.createdAt),
-      badges: [
-        StatusBadge(
-          label: alert.isRead ? 'Read' : 'Unread',
-          icon: alert.isRead ? Icons.done : Icons.markunread,
-          tone: alert.isRead ? StatusBadgeTone.neutral : StatusBadgeTone.danger,
-        ),
-        StatusBadge(
-          label: alert.alertType.replaceAll('_', ' '),
-          icon: Icons.label_outline,
-          tone: StatusBadgeTone.warning,
-        ),
-      ],
       trailing: TextButton(
         onPressed: onToggleRead,
         child: Text(alert.isRead ? 'Mark unread' : 'Mark read'),
@@ -736,24 +804,20 @@ class _SelectableRecordCard extends StatelessWidget {
   const _SelectableRecordCard({
     required this.selected,
     required this.severe,
-    required this.checkbox,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.timestamp,
-    required this.badges,
     required this.onTap,
     this.trailing,
   });
 
   final bool selected;
   final bool severe;
-  final Widget checkbox;
   final Widget icon;
   final String title;
   final String subtitle;
   final String timestamp;
-  final List<Widget> badges;
   final VoidCallback? onTap;
   final Widget? trailing;
 
@@ -762,8 +826,8 @@ class _SelectableRecordCard extends StatelessWidget {
     final borderColor = selected
         ? AppColors.teal
         : severe
-            ? AppColors.dangerBorder
-            : AppColors.border;
+        ? AppColors.dangerBorder
+        : AppColors.border;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Card(
@@ -782,7 +846,15 @@ class _SelectableRecordCard extends StatelessWidget {
                 final content = Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    checkbox,
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: selected
+                            ? const Icon(Icons.check_box, color: AppColors.teal)
+                            : null,
+                      ),
+                    ),
                     const SizedBox(width: AppSpacing.sm),
                     SizedBox(width: 32, child: Center(child: icon)),
                     const SizedBox(width: AppSpacing.md),
@@ -794,9 +866,7 @@ class _SelectableRecordCard extends StatelessWidget {
                             title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
+                            style: Theme.of(context).textTheme.titleSmall
                                 ?.copyWith(
                                   fontWeight: FontWeight.w900,
                                   color: AppColors.text,
@@ -807,16 +877,8 @@ class _SelectableRecordCard extends StatelessWidget {
                             '$subtitle · $timestamp',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textMuted,
-                                    ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            children: badges,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textMuted),
                           ),
                         ],
                       ),
@@ -882,9 +944,9 @@ class _SelectionToolbar extends StatelessWidget {
               child: Text(
                 label,
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: AppColors.tealDark,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  color: AppColors.tealDark,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
             TextButton(
@@ -928,9 +990,9 @@ class _LoadingRows extends StatelessWidget {
           children: [
             Text(
               label,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: AppSpacing.md),
             const LinearProgressIndicator(),

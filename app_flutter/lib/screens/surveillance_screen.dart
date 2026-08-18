@@ -41,6 +41,10 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
   VideoAnalysisResultsModel? _videoResults;
   Timer? _liveTimer;
   Timer? _videoTimer;
+  bool _livePollInFlight = false;
+  bool _videoPollInFlight = false;
+  int _livePollFailures = 0;
+  int _videoPollFailures = 0;
   bool _busy = false;
   String? _error;
 
@@ -113,7 +117,10 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     await _guard(() async {
       final status = await _service.startSurveillance(cameraId);
       if (!mounted) return;
-      setState(() => _liveStatus = status);
+      setState(() {
+        _liveStatus = status;
+        _latest = null;
+      });
       _startLivePolling();
       showAppSnackBar(
         context,
@@ -249,6 +256,8 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
   }
 
   Future<void> _pollLive() async {
+    if (_livePollInFlight) return;
+    _livePollInFlight = true;
     try {
       final status = await _service.surveillanceStatus();
       LatestAnalysisModel? latest;
@@ -259,8 +268,11 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       }
       if (!mounted) return;
       setState(() {
+        _livePollFailures = 0;
         _liveStatus = status;
-        if (latest != null) _latest = latest;
+        if (latest != null) {
+          _latest = latest;
+        }
         if (frame != null) _frame = frame;
         if (!status.running) {
           _latest = null;
@@ -269,7 +281,14 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       });
       if (!status.running) _liveTimer?.cancel();
     } catch (error) {
-      if (mounted) setState(() => _error = friendlyErrorMessage(error));
+      if (mounted) {
+        _livePollFailures += 1;
+        if (_livePollFailures >= 3) {
+          setState(() => _error = friendlyErrorMessage(error));
+        }
+      }
+    } finally {
+      _livePollInFlight = false;
     }
   }
 
@@ -325,8 +344,10 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
   }
 
   Future<void> _pollVideo() async {
+    if (_videoPollInFlight) return;
     final jobId = _videoStatus?.jobId;
     if (jobId == null) return;
+    _videoPollInFlight = true;
     try {
       final status = await _service.videoStatus(jobId);
       VideoAnalysisResultsModel? results;
@@ -338,6 +359,7 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       final frame = await _service.videoFrame(jobId);
       if (!mounted) return;
       setState(() {
+        _videoPollFailures = 0;
         _videoStatus = status;
         if (results != null) _videoResults = results;
         if (frame != null) _frame = frame;
@@ -347,7 +369,14 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
       });
       if (!status.isActive) _videoTimer?.cancel();
     } catch (error) {
-      if (mounted) setState(() => _error = friendlyErrorMessage(error));
+      if (mounted) {
+        _videoPollFailures += 1;
+        if (_videoPollFailures >= 3) {
+          setState(() => _error = friendlyErrorMessage(error));
+        }
+      }
+    } finally {
+      _videoPollInFlight = false;
     }
   }
 
@@ -392,8 +421,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final running = _liveStatus?.running == true;
-    final failed = _liveStatus?.state == 'failed';
     final showLive = _mode == _SurveillanceMode.live;
 
     return AppPage(
@@ -404,31 +431,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
           subtitle:
               'Monitor the live webcam or analyze a temporary uploaded video.',
           icon: Icons.videocam,
-          trailing: StatusBadge(
-            label: showLive
-                ? running
-                      ? 'Live'
-                      : failed
-                      ? 'Camera failed'
-                      : 'Stopped'
-                : _videoStatus?.state ?? 'Upload mode',
-            icon: showLive
-                ? running
-                      ? Icons.visibility
-                      : failed
-                      ? Icons.error_outline
-                      : Icons.videocam_off_outlined
-                : Icons.video_file,
-            tone: showLive
-                ? running
-                      ? StatusBadgeTone.success
-                      : failed
-                      ? StatusBadgeTone.danger
-                      : StatusBadgeTone.neutral
-                : _videoStatus?.errorMessage?.isNotEmpty == true
-                ? StatusBadgeTone.danger
-                : StatusBadgeTone.neutral,
-          ),
         ),
         const SizedBox(height: AppSpacing.lg),
         if (_error != null)
@@ -495,10 +497,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
     final running = _liveStatus?.running ?? false;
     final failed = _liveStatus?.state == 'failed';
     final liveError = _liveStatus?.errorMessage;
-    final selectedCamera = _cameras
-        .where((camera) => camera.id == _selectedCameraId)
-        .cast<CameraModel?>()
-        .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -546,10 +544,6 @@ class _SurveillanceScreenState extends State<SurveillanceScreen> {
                       label: const Text('Add laptop webcam'),
                     ),
                   ),
-                if (_cameras.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _CameraDetails(camera: selectedCamera),
-                ],
                 const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
@@ -809,33 +803,6 @@ class _SurveillancePreviewCard extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                StatusBadge(
-                  icon: Icons.center_focus_strong,
-                  label: frame == null ? 'No frame' : 'Frame available',
-                  tone: frame == null
-                      ? StatusBadgeTone.neutral
-                      : StatusBadgeTone.success,
-                ),
-                if (isLive && liveStatus != null)
-                  StatusBadge(
-                    icon: Icons.filter_frames_outlined,
-                    label: '${liveStatus!.framesProcessed} frames',
-                  ),
-                if (!isLive && videoStatus != null)
-                  StatusBadge(
-                    icon: Icons.speed,
-                    label:
-                        '${videoStatus!.processingFps.toStringAsFixed(1)} FPS',
-                  ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -974,27 +941,6 @@ class _PreviewOverlay extends StatelessWidget {
   }
 }
 
-class _CameraDetails extends StatelessWidget {
-  const _CameraDetails({required this.camera});
-
-  final CameraModel? camera;
-
-  @override
-  Widget build(BuildContext context) {
-    if (camera == null) return const SizedBox.shrink();
-    return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
-      children: [
-        StatusBadge(icon: Icons.videocam_outlined, label: camera!.name),
-        StatusBadge(icon: Icons.input, label: 'Source ${camera!.source}'),
-        if (camera!.location != null && camera!.location!.isNotEmpty)
-          StatusBadge(icon: Icons.place_outlined, label: camera!.location!),
-      ],
-    );
-  }
-}
-
 class _VideoStatusDetails extends StatelessWidget {
   const _VideoStatusDetails({required this.status});
 
@@ -1054,6 +1000,7 @@ class _LiveDetectionSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tracks = latest?.tracks ?? const <AnalysisTrackModel>[];
+    final unknownLabels = _LiveUnknownPersonLabels(tracks);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1077,7 +1024,12 @@ class _LiveDetectionSummary extends StatelessWidget {
                 compact: true,
               )
             else
-              ...tracks.map(_TrackTile.new),
+              ...tracks.map(
+                (detection) => _DetectionTile(
+                  detection,
+                  title: unknownLabels.labelForDetection(detection),
+                ),
+              ),
           ],
         ),
       ),
@@ -1137,7 +1089,7 @@ class _RestrictedZonePanel extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               running
-                  ? 'Tap the live preview to place exactly 4 corner points.'
+                  ? 'Tap the live preview to place 4 corner points. Unknown people inside an active zone briefly will alert.'
                   : 'Start live surveillance before placing points.',
               style: Theme.of(
                 context,
@@ -1372,6 +1324,7 @@ class _VideoDetectionSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final events = results?.events ?? const <TemporaryVideoEventModel>[];
+    final unknownLabels = _VideoUnknownPersonLabels(events);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -1413,7 +1366,12 @@ class _VideoDetectionSummary extends StatelessWidget {
                 compact: true,
               )
             else
-              ...events.reversed.map(_VideoEventTile.new),
+              ...events.reversed.map(
+                (event) => _VideoEventTile(
+                  event,
+                  title: unknownLabels.labelForEvent(event),
+                ),
+              ),
           ],
         ),
       ),
@@ -1421,10 +1379,58 @@ class _VideoDetectionSummary extends StatelessWidget {
   }
 }
 
-class _TrackTile extends StatelessWidget {
-  const _TrackTile(this.track);
+class _LiveUnknownPersonLabels {
+  _LiveUnknownPersonLabels(List<AnalysisTrackModel> tracks) {
+    for (final detection in tracks.where(
+      (detection) => detection.status != 'known',
+    )) {
+      _labelsByDetection[detection] = format(detection.trackId);
+    }
+  }
 
-  final AnalysisTrackModel track;
+  final Map<AnalysisTrackModel, String> _labelsByDetection = {};
+
+  String labelForDetection(AnalysisTrackModel detection) {
+    if (detection.status == 'known') {
+      return detection.memberName ?? 'Known person';
+    }
+    return _labelsByDetection[detection] ?? 'Unknown Person';
+  }
+
+  static String format(int index) => _format(index);
+}
+
+class _VideoUnknownPersonLabels {
+  _VideoUnknownPersonLabels(List<TemporaryVideoEventModel> events) {
+    final unknownEvents =
+        events.where((event) => event.status != 'known').toList()..sort((a, b) {
+          final timeComparison = a.timestampSeconds.compareTo(
+            b.timestampSeconds,
+          );
+          if (timeComparison != 0) return timeComparison;
+          return a.frameIndex.compareTo(b.frameIndex);
+        });
+    for (final entry in unknownEvents.indexed) {
+      _labelsByEvent[entry.$2] = _format(entry.$1 + 1);
+    }
+  }
+
+  final Map<TemporaryVideoEventModel, String> _labelsByEvent = {};
+
+  String labelForEvent(TemporaryVideoEventModel event) {
+    if (event.status == 'known') return event.memberName ?? 'Known person';
+    return _labelsByEvent[event] ?? 'Unknown Person';
+  }
+}
+
+String _format(int index) =>
+    'Unknown Person ${index.toString().padLeft(2, '0')}';
+
+class _DetectionTile extends StatelessWidget {
+  const _DetectionTile(this.detection, {required this.title});
+
+  final AnalysisTrackModel detection;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -1433,16 +1439,17 @@ class _TrackTile extends StatelessWidget {
       child: ListTile(
         contentPadding: EdgeInsets.zero,
         leading: Icon(
-          track.status == 'known' ? Icons.verified_user : Icons.person_search,
+          detection.status == 'known'
+              ? Icons.verified_user
+              : Icons.person_search,
         ),
-        title: Text(track.memberName ?? 'Unknown person'),
+        title: Text(title),
         subtitle: Text(
-          'Track ${track.trackId} · '
-          '${((track.similarity ?? track.personConfidence) * 100).toStringAsFixed(1)}%',
+          '${((detection.similarity ?? detection.personConfidence) * 100).toStringAsFixed(1)}%',
         ),
         trailing: StatusBadge(
-          label: track.status,
-          tone: track.status == 'known'
+          label: detection.status,
+          tone: detection.status == 'known'
               ? StatusBadgeTone.success
               : StatusBadgeTone.warning,
         ),
@@ -1452,9 +1459,10 @@ class _TrackTile extends StatelessWidget {
 }
 
 class _VideoEventTile extends StatelessWidget {
-  const _VideoEventTile(this.event);
+  const _VideoEventTile(this.event, {required this.title});
 
   final TemporaryVideoEventModel event;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -1465,10 +1473,10 @@ class _VideoEventTile extends StatelessWidget {
         leading: Icon(
           event.status == 'known' ? Icons.verified_user : Icons.warning_amber,
         ),
-        title: Text(event.memberName ?? 'Unknown person'),
+        title: Text(title),
         subtitle: Text(
           '${event.timestampSeconds.toStringAsFixed(1)}s · '
-          'track ${event.trackId} · ${event.eventType}',
+          '${event.eventType.replaceAll('_', ' ')}',
         ),
         trailing: StatusBadge(
           label: event.status,

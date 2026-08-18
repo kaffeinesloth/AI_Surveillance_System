@@ -90,7 +90,8 @@ directories without loading or downloading AI models.
 
 ## Run With Docker
 
-From the project root:
+This is the easiest path for teammates who pull the project from GitHub.
+Install Docker Desktop, start it, then run from the project root:
 
 ```powershell
 docker compose up --build
@@ -116,6 +117,10 @@ Docker Compose builds two services:
 | `backend` | FastAPI API, SQLite, AI pipeline and uploaded-video analysis | `8000` |
 | `frontend` | Flutter web app served by Nginx, with `/api` proxied to backend | `8080` |
 
+Docker runtime settings are committed in
+[`docker/backend.env`](docker/backend.env). The Compose file reads that file, so
+teammates do not need to create a local `.env` before the first run.
+
 SQLite data, uploaded runtime files, and downloaded AI models are kept in Docker
 volumes named `backend_database`, `backend_data`, and `backend_models`, so they
 survive container restarts.
@@ -125,6 +130,22 @@ downloaded inside the `backend_models` volume. Live webcam access from Docker is
 host-dependent; uploaded-video analysis works without camera passthrough. If
 webcam access is required and Docker cannot see the device, run the backend
 locally with the manual command above.
+
+Useful Docker commands:
+
+```powershell
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose down
+```
+
+To reset all saved Docker data, including the SQLite database and downloaded
+models:
+
+```powershell
+docker compose down -v
+```
 
 ## First-time use
 
