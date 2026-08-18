@@ -1,11 +1,11 @@
 {
-    "name": "app_flutter",
-    "short_name": "app_flutter",
+    "name": "AI Surveillance System",
+    "short_name": "AI Surveillance",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "AI-powered live surveillance and face security system.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

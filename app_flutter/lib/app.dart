@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/main_shell.dart';
+import 'theme/app_tokens.dart';
 
 class FaceSecurityApp extends StatelessWidget {
   const FaceSecurityApp({super.key});
@@ -8,41 +9,71 @@ class FaceSecurityApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI Face Security',
+      title: 'AI Surveillance System',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F766E),
+          seedColor: AppColors.teal,
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: const Color(0xFFF6F8FA),
+        scaffoldBackgroundColor: AppColors.background,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF6F8FA),
+          backgroundColor: AppColors.background,
           centerTitle: false,
           elevation: 0,
           titleTextStyle: TextStyle(
-            color: Color(0xFF111827),
+            color: AppColors.text,
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),
         ),
         cardTheme: CardThemeData(
-          color: Colors.white,
+          color: AppColors.surface,
           elevation: 0,
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: const BorderSide(color: Color(0xFFE5E7EB)),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            side: const BorderSide(color: AppColors.border),
+          ),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.surface,
+          side: const BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+          ),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.teal,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(44, 44),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.tealDark,
+            minimumSize: const Size(44, 44),
+            side: const BorderSide(color: AppColors.borderStrong),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+            ),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          fillColor: AppColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+          ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFD1D5DB)),
+            borderRadius: BorderRadius.circular(AppRadii.sm),
+            borderSide: const BorderSide(color: AppColors.borderStrong),
           ),
         ),
       ),

@@ -63,6 +63,28 @@ void main() {
     expect(results.events.single.memberName, 'Tuan');
   });
 
+  test('latest analysis preserves backend track ids', () async {
+    final client = MockClient(
+      (request) async => http.Response(
+        '{"frame_index":9,"width":640,"height":480,'
+        '"tracks":[{"track_id":7,"status":"unknown",'
+        '"person_confidence":0.83,'
+        '"bounding_box":{"x1":10,"y1":20,"x2":110,"y2":180},'
+        '"member_name":null,"similarity":0.18}]}',
+        200,
+      ),
+    );
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final latest = await service.latestAnalysis();
+
+    expect(latest?.tracks.single.trackId, 7);
+    expect(latest?.tracks.single.status, 'unknown');
+  });
+
   test('submitVideo uploads byte-backed picked videos', () async {
     late http.Request capturedRequest;
     final client = MockClient((request) async {
@@ -175,6 +197,41 @@ void main() {
     await service.deleteLog(7);
 
     expect(requestedUrl?.path, '/logs/7');
+  });
+
+  test('parses persistent logs and linked alerts', () async {
+    final client = MockClient((request) async {
+      if (request.url.path == '/logs') {
+        return http.Response(
+          '[{"id":11,"session_id":3,"camera_id":1,"member_id":null,'
+          '"track_id":4,"status":"unknown","confidence":0.22,'
+          '"snapshot_path":null,"detected_at":"2026-08-18T01:00:00Z",'
+          '"member_name":null,"camera_name":"Laptop webcam"}]',
+          200,
+        );
+      }
+      return http.Response(
+        '[{"id":12,"session_id":3,"camera_id":1,"detection_log_id":11,'
+        '"member_id":null,"alert_type":"unknown_person",'
+        '"message":"Unknown person detected","confidence":0.22,'
+        '"snapshot_path":null,"is_read":false,'
+        '"created_at":"2026-08-18T01:00:00Z","member_name":null,'
+        '"camera_name":"Laptop webcam","snapshot_url":null}]',
+        200,
+      );
+    });
+    final service = SecurityService(
+      client: client,
+      baseUrl: 'http://backend.test',
+    );
+
+    final logs = await service.listLogs();
+    final alerts = await service.listAlerts();
+
+    expect(logs.single.sessionId, 3);
+    expect(logs.single.trackId, 4);
+    expect(logs.single.status, 'unknown');
+    expect(alerts.single.detectionLogId, 11);
   });
 
   test('delete helpers call persistent delete endpoints', () async {

@@ -88,21 +88,19 @@ class MemberService {
         return detail;
       }
       if (detail is List && detail.isNotEmpty) {
-        return detail
-            .map((item) {
-              if (item is Map<String, dynamic>) {
-                final message = item['msg'];
-                final location = item['loc'];
-                if (message is String && location is List) {
-                  return '${location.join('.')}: $message';
-                }
-                if (message is String) {
-                  return message;
-                }
-              }
-              return item.toString();
-            })
-            .join('\n');
+        return detail.map((item) {
+          if (item is Map<String, dynamic>) {
+            final message = item['msg'];
+            final location = item['loc'];
+            if (message is String && location is List) {
+              return '${location.join('.')}: $message';
+            }
+            if (message is String) {
+              return message;
+            }
+          }
+          return item.toString();
+        }).join('\n');
       }
     } catch (_) {
       // Fall through to the generic message below.

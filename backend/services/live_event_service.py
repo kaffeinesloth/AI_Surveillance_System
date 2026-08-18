@@ -4,14 +4,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+import cv2
+import numpy as np
+
 from backend.ai.contracts import FrameAnalysis, TrackAnalysis
 from backend.app.config import (
     ALERT_COOLDOWN_SECONDS,
+    RESTRICTED_ZONE_ALERT_COOLDOWN_SECONDS,
+    RESTRICTED_ZONE_DWELL_SECONDS,
     SNAPSHOTS_DIR,
     UNKNOWN_CONFIRMATION_FRAMES,
     serialize_storage_path,
 )
 from backend.app.models import AlertType, DetectionStatus
+from backend.services.zone_service import RestrictedZone
+
+
+@dataclass
+class _ZoneDwellState:
+    entered_at: float
+    last_alert_at: float | None = None
+    alert_recorded: bool = False
 
 
 @dataclass
@@ -19,6 +32,9 @@ class _TrackEventState:
     unknown_streak: int = 0
     last_log_key: tuple[str, int | None] | None = None
     last_alert_at: float | None = None
+    last_seen_at: float | None = None
+    unknown_alert_recorded: bool = False
+    zone_dwell: dict[int, _ZoneDwellState] | None = None
 
 
 @dataclass(frozen=True)
@@ -27,6 +43,7 @@ class PersistedAlertEvent:
     detection_log_id: int
     track_id: int
     snapshot_path: str
+    alert_type: AlertType = AlertType.UNKNOWN_PERSON
 
 
 class LiveEventRecorder:
@@ -41,17 +58,32 @@ class LiveEventRecorder:
         snapshots_dir: Path = SNAPSHOTS_DIR,
         unknown_confirmation_frames: int = UNKNOWN_CONFIRMATION_FRAMES,
         alert_cooldown_seconds: float = ALERT_COOLDOWN_SECONDS,
+        restricted_zones: list[RestrictedZone] | None = None,
+        restricted_zone_dwell_seconds: float = RESTRICTED_ZONE_DWELL_SECONDS,
+        restricted_zone_alert_cooldown_seconds: float = (
+            RESTRICTED_ZONE_ALERT_COOLDOWN_SECONDS
+        ),
     ) -> None:
         if unknown_confirmation_frames <= 0:
             raise ValueError("Unknown confirmation frames must be positive")
         if alert_cooldown_seconds < 0:
             raise ValueError("Alert cooldown cannot be negative")
+        if restricted_zone_dwell_seconds < 0:
+            raise ValueError("Restricted-zone dwell time cannot be negative")
+        if restricted_zone_alert_cooldown_seconds < 0:
+            raise ValueError("Restricted-zone cooldown cannot be negative")
         self.connection = connection
         self.session_id = session_id
         self.camera_id = camera_id
         self.snapshots_dir = snapshots_dir
         self.unknown_confirmation_frames = unknown_confirmation_frames
         self.alert_cooldown_seconds = alert_cooldown_seconds
+        self.restricted_zones = restricted_zones or []
+        self.restricted_zone_dwell_seconds = restricted_zone_dwell_seconds
+        self.restricted_zone_alert_cooldown_seconds = (
+            restricted_zone_alert_cooldown_seconds
+        )
+        self.track_state_ttl_seconds = max(alert_cooldown_seconds, 1.0)
         self._track_states: dict[int, _TrackEventState] = {}
 
     def process(
@@ -60,18 +92,35 @@ class LiveEventRecorder:
         annotated_frame_jpeg: bytes,
     ) -> list[PersistedAlertEvent]:
         pending_logs: list[TrackAnalysis] = []
-        pending_alerts: list[TrackAnalysis] = []
+        pending_alerts: list[tuple[TrackAnalysis, AlertType, str]] = []
+        stale_track_ids = [
+            track_id
+            for track_id, state in self._track_states.items()
+            if state.last_seen_at is not None
+            and analysis.timestamp_seconds - state.last_seen_at
+            >= self.track_state_ttl_seconds
+        ]
+        for track_id in stale_track_ids:
+            self._track_states.pop(track_id, None)
+
+        visible_track_ids = {track.track_id for track in analysis.tracks}
+        for track_id, state in self._track_states.items():
+            if track_id not in visible_track_ids:
+                state.zone_dwell = None
 
         for track in analysis.tracks:
             state = self._track_states.setdefault(
                 track.track_id,
                 _TrackEventState(),
             )
+            state.last_seen_at = analysis.timestamp_seconds
             if (
                 track.status is DetectionStatus.KNOWN
                 and track.member_id is not None
             ):
                 state.unknown_streak = 0
+                state.unknown_alert_recorded = False
+                state.zone_dwell = None
                 key = (DetectionStatus.KNOWN.value, track.member_id)
                 if state.last_log_key != key:
                     pending_logs.append(track)
@@ -80,15 +129,35 @@ class LiveEventRecorder:
             if track.status is DetectionStatus.UNKNOWN:
                 state.unknown_streak += 1
                 if state.unknown_streak < self.unknown_confirmation_frames:
+                    state.zone_dwell = None
                     continue
-                alert_due = (
-                    state.last_alert_at is None
-                    or analysis.timestamp_seconds - state.last_alert_at
-                    >= self.alert_cooldown_seconds
-                )
-                if alert_due:
+                if state.unknown_alert_recorded:
+                    self._collect_restricted_zone_alerts(
+                        analysis,
+                        track,
+                        state,
+                        pending_logs,
+                        pending_alerts,
+                    )
+                    continue
+                if self._unknown_alert_due(state, analysis.timestamp_seconds):
                     pending_logs.append(track)
-                    pending_alerts.append(track)
+                    pending_alerts.append(
+                        (
+                            track,
+                            AlertType.UNKNOWN_PERSON,
+                            "Unknown person detected",
+                        )
+                    )
+                self._collect_restricted_zone_alerts(
+                    analysis,
+                    track,
+                    state,
+                    pending_logs,
+                    pending_alerts,
+                )
+            else:
+                state.zone_dwell = None
 
         if not pending_logs:
             return []
@@ -104,36 +173,24 @@ class LiveEventRecorder:
         detected_at = datetime.now(timezone.utc).isoformat()
         try:
             for track in pending_logs:
-                is_alert = track in pending_alerts
-                log_snapshot_path = snapshot_path if is_alert else None
-                log_cursor = self.connection.execute(
-                    """
-                    INSERT INTO detection_logs (
-                        session_id,
-                        camera_id,
-                        member_id,
-                        track_id,
-                        status,
-                        confidence,
-                        snapshot_path,
-                        detected_at
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        self.session_id,
-                        self.camera_id,
-                        track.member_id,
-                        track.track_id,
-                        track.status.value,
-                        track.similarity,
-                        log_snapshot_path,
-                        detected_at,
-                    ),
-                )
-                detection_log_id = int(log_cursor.lastrowid)
+                track_alerts = [
+                    alert
+                    for alert in pending_alerts
+                    if alert[0] is track
+                ]
+                if not track_alerts:
+                    self._insert_detection_log(track, None, detected_at)
+                    continue
 
-                if is_alert and snapshot_path is not None:
+                if snapshot_path is None:
+                    continue
+
+                for _, alert_type, message in track_alerts:
+                    detection_log_id = self._insert_detection_log(
+                        track,
+                        snapshot_path,
+                        detected_at,
+                    )
                     alert_cursor = self.connection.execute(
                         """
                         INSERT INTO alerts (
@@ -154,8 +211,8 @@ class LiveEventRecorder:
                             self.camera_id,
                             detection_log_id,
                             None,
-                            AlertType.UNKNOWN_PERSON.value,
-                            f"Unknown person detected on track {track.track_id}",
+                            alert_type.value,
+                            message,
                             track.similarity,
                             snapshot_path,
                             detected_at,
@@ -167,6 +224,7 @@ class LiveEventRecorder:
                             detection_log_id=detection_log_id,
                             track_id=track.track_id,
                             snapshot_path=snapshot_path,
+                            alert_type=alert_type,
                         )
                     )
             self.connection.commit()
@@ -179,9 +237,140 @@ class LiveEventRecorder:
         for track in pending_logs:
             state = self._track_states[track.track_id]
             state.last_log_key = (track.status.value, track.member_id)
-            if track in pending_alerts:
+            track_alert_types = {
+                alert_type
+                for pending_track, alert_type, _ in pending_alerts
+                if pending_track is track
+            }
+            if AlertType.UNKNOWN_PERSON in track_alert_types:
                 state.last_alert_at = analysis.timestamp_seconds
+                state.unknown_alert_recorded = True
         return persisted_alerts
+
+    def _insert_detection_log(
+        self,
+        track: TrackAnalysis,
+        snapshot_path: str | None,
+        detected_at: str,
+    ) -> int:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO detection_logs (
+                session_id,
+                camera_id,
+                member_id,
+                track_id,
+                status,
+                confidence,
+                snapshot_path,
+                detected_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                self.session_id,
+                self.camera_id,
+                track.member_id,
+                track.track_id,
+                track.status.value,
+                track.similarity,
+                snapshot_path,
+                detected_at,
+            ),
+        )
+        return int(cursor.lastrowid)
+
+    def _unknown_alert_due(
+        self,
+        state: _TrackEventState,
+        timestamp_seconds: float,
+    ) -> bool:
+        return (
+            state.last_alert_at is None
+            or timestamp_seconds - state.last_alert_at
+            >= self.alert_cooldown_seconds
+        )
+
+    def _collect_restricted_zone_alerts(
+        self,
+        analysis: FrameAnalysis,
+        track: TrackAnalysis,
+        state: _TrackEventState,
+        pending_logs: list[TrackAnalysis],
+        pending_alerts: list[tuple[TrackAnalysis, AlertType, str]],
+    ) -> None:
+        if not self.restricted_zones:
+            return
+
+        state.zone_dwell = state.zone_dwell or {}
+        timestamp = analysis.timestamp_seconds
+        active_zone_ids: set[int] = set()
+        for zone in self.restricted_zones:
+            if not self._track_overlaps_zone(track, zone):
+                continue
+            active_zone_ids.add(zone.id)
+            dwell = state.zone_dwell.setdefault(
+                zone.id,
+                _ZoneDwellState(entered_at=timestamp),
+            )
+            if timestamp - dwell.entered_at < self.restricted_zone_dwell_seconds:
+                continue
+            if dwell.alert_recorded:
+                continue
+            if (
+                dwell.last_alert_at is not None
+                and timestamp - dwell.last_alert_at
+                < self.restricted_zone_alert_cooldown_seconds
+            ):
+                continue
+            if track not in pending_logs:
+                pending_logs.append(track)
+            pending_alerts.append(
+                (
+                    track,
+                    AlertType.RESTRICTED_AREA,
+                    f"Unknown person entered {zone.name}",
+                )
+            )
+            dwell.last_alert_at = timestamp
+            dwell.alert_recorded = True
+
+        for zone_id in list(state.zone_dwell):
+            if zone_id not in active_zone_ids:
+                state.zone_dwell.pop(zone_id, None)
+
+    @staticmethod
+    def _track_overlaps_zone(track: TrackAnalysis, zone: RestrictedZone) -> bool:
+        box = track.bounding_box
+        x_values = (
+            box.x1,
+            (box.x1 + box.x2) // 2,
+            box.x2,
+        )
+        y_values = (
+            box.y1,
+            (box.y1 + box.y2) // 2,
+            box.y2,
+        )
+        sample_points = tuple((x, y) for x in x_values for y in y_values)
+        if any(
+            LiveEventRecorder._point_in_zone(point, zone)
+            for point in sample_points
+        ):
+            return True
+
+        return any(
+            box.x1 <= point.x <= box.x2 and box.y1 <= point.y <= box.y2
+            for point in zone.points
+        )
+
+    @staticmethod
+    def _point_in_zone(point: tuple[int, int], zone: RestrictedZone) -> bool:
+        contour = np.array(
+            [[zone_point.x, zone_point.y] for zone_point in zone.points],
+            dtype=np.int32,
+        )
+        return cv2.pointPolygonTest(contour, point, False) >= 0
 
     def _save_snapshot(
         self,

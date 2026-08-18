@@ -3,10 +3,21 @@ import 'package:file_picker/file_picker.dart';
 
 import '../models/member_model.dart';
 import '../services/member_service.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/app_message.dart';
 import '../widgets/app_page.dart';
+import '../widgets/header_block.dart';
+import '../widgets/status_badge.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({
+    super.key,
+    required this.refreshToken,
+    required this.onMembersChanged,
+  });
+
+  final int refreshToken;
+  final VoidCallback onMembersChanged;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -18,60 +29,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   List<PlatformFile> _selectedImages = [];
   RegisterMemberResult? _lastResult;
-  late Future<List<MemberModel>> _membersFuture;
   bool _isSubmitting = false;
+  bool _hasSubmitted = false;
+  String? _formError;
+
+  bool get _hasName => _nameController.text.trim().isNotEmpty;
+  bool get _hasImages => _selectedImages.isNotEmpty;
+  bool get _canSubmit => !_isSubmitting && _hasName && _hasImages;
 
   @override
   void initState() {
     super.initState();
-    _membersFuture = _memberService.listMembers();
+    _nameController.addListener(_onFormChanged);
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _nameController
+      ..removeListener(_onFormChanged)
+      ..dispose();
     super.dispose();
   }
 
+  void _onFormChanged() {
+    setState(() => _formError = _hasSubmitted ? _validationMessage() : null);
+  }
+
   Future<void> _pickImages() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
-    );
+    final FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+        withData: true,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      final message = friendlyErrorMessage(error);
+      setState(() => _formError = message);
+      _showMessage(message, isError: true);
+      return;
+    }
 
     if (result == null) {
       return;
     }
 
-    setState(() => _selectedImages = result.files);
+    final files = result.files;
+    setState(() {
+      _selectedImages = files;
+      _formError = _hasSubmitted ? _validationMessage() : null;
+    });
   }
 
   void _removeSelectedImage(int index) {
-    setState(() => _selectedImages = [..._selectedImages]..removeAt(index));
+    setState(() {
+      _selectedImages = [..._selectedImages]..removeAt(index);
+      _formError = _hasSubmitted ? _validationMessage() : null;
+    });
   }
 
   void _clearSelectedImages() {
-    setState(() => _selectedImages = []);
-  }
-
-  void _refreshMembers() {
-    setState(() => _membersFuture = _memberService.listMembers());
+    setState(() {
+      _selectedImages = [];
+      _formError = _hasSubmitted ? _validationMessage() : null;
+    });
   }
 
   Future<void> _registerMember() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      _showMessage('Enter a person name first.', isError: true);
-      return;
-    }
-    if (_selectedImages.isEmpty) {
-      _showMessage('Choose at least one face image.', isError: true);
+    final validationMessage = _validationMessage();
+    if (validationMessage != null) {
+      setState(() {
+        _hasSubmitted = true;
+        _formError = validationMessage;
+      });
+      _showMessage(validationMessage, isError: true);
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _hasSubmitted = true;
+      _isSubmitting = true;
+      _formError = null;
+    });
     try {
       final result = await _memberService.registerMember(
         name: name,
@@ -82,16 +124,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _selectedImages = [];
         _lastResult = result;
-        _membersFuture = _memberService.listMembers();
+        _formError = null;
+        _hasSubmitted = false;
       });
+      widget.onMembersChanged();
       _showMessage(result.message);
     } catch (error) {
       if (!mounted) return;
-      setState(() => _lastResult = null);
-      _showMessage(
-        error.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
+      final message = friendlyErrorMessage(error);
+      setState(() {
+        _lastResult = null;
+        _formError = message;
+      });
+      _showMessage(message, isError: true);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -99,327 +144,92 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  String? _validationMessage() {
+    if (!_hasName && !_hasImages) {
+      return 'Enter a person name and choose at least one face image.';
+    }
+    if (!_hasName) return 'Enter a person name first.';
+    if (!_hasImages) return 'Choose at least one face image.';
+    return null;
+  }
+
   void _showMessage(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? const Color(0xFFB91C1C) : null,
-      ),
+    showAppSnackBar(
+      context,
+      message: message,
+      tone: isError ? AppMessageTone.danger : AppMessageTone.success,
     );
-  }
-
-  Future<void> _deleteMember(MemberModel member) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete member'),
-          content: Text('Delete ${member.name} and saved registration files?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    try {
-      await _memberService.deleteMember(member.id);
-      if (!mounted) return;
-      _refreshMembers();
-      _showMessage('Deleted ${member.name}.');
-    } catch (error) {
-      if (!mounted) return;
-      _showMessage(
-        error.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppPage(
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Person name',
-                    hintText: 'Enter name',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: _isSubmitting ? null : _pickImages,
-                  icon: const Icon(Icons.upload_file_outlined),
-                  label: const Text('Choose face images'),
-                ),
-                const SizedBox(height: 12),
-                _ImageSelectionSummary(
-                  images: _selectedImages,
-                  onRemove: _isSubmitting ? null : _removeSelectedImage,
-                  onClear: _isSubmitting ? null : _clearSelectedImages,
-                ),
-                if (_lastResult != null) ...[
-                  const SizedBox(height: 16),
-                  _RegistrationResultPanel(result: _lastResult!),
-                ],
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _isSubmitting ? null : _registerMember,
-                  icon: _isSubmitting
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(_isSubmitting ? 'Registering...' : 'Register'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _RegisteredPeoplePanel(
-          membersFuture: _membersFuture,
-          onRefresh: _refreshMembers,
-          onDelete: _deleteMember,
-        ),
-      ],
-    );
-  }
-}
-
-class _RegisteredPeoplePanel extends StatelessWidget {
-  const _RegisteredPeoplePanel({
-    required this.membersFuture,
-    required this.onRefresh,
-    required this.onDelete,
-  });
-
-  final Future<List<MemberModel>> membersFuture;
-  final VoidCallback onRefresh;
-  final ValueChanged<MemberModel> onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
+    final formCard = Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Registered people',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-                IconButton.filledTonal(
-                  onPressed: onRefresh,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh',
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FutureBuilder<List<MemberModel>>(
-              future: membersFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return _InlineErrorPanel(
-                    message: snapshot.error.toString().replaceFirst(
-                          'Exception: ',
-                          '',
-                        ),
-                    onRetry: onRefresh,
-                  );
-                }
-
-                final members = snapshot.data ?? const [];
-                if (members.isEmpty) {
-                  return const _InlineEmptyPanel();
-                }
-
-                return Column(
-                  children: members
-                      .map(
-                        (member) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _CompactMemberTile(
-                            member: member,
-                            onDelete: () => onDelete(member),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactMemberTile extends StatelessWidget {
-  const _CompactMemberTile({
-    required this.member,
-    required this.onDelete,
-  });
-
-  final MemberModel member;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFFE0F2F1),
-              foregroundColor: const Color(0xFF0F766E),
-              child: Text(_initialsFor(member.name)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    member.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${member.imageCount} image(s) - ${_formatCreatedAt(member.createdAt)}',
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineEmptyPanel extends StatelessWidget {
-  const _InlineEmptyPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.people_outline,
-              size: 32,
-              color: Color(0xFF9CA3AF),
-            ),
-            const SizedBox(height: 8),
             Text(
-              'No registered people',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              'Person details',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: _nameController,
+              enabled: !_isSubmitting,
+              decoration: const InputDecoration(
+                labelText: 'Person name',
+                hintText: 'Enter the name used in alerts and logs',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _ImagePickerPanel(
+              images: _selectedImages,
+              submitting: _isSubmitting,
+              onPick: _pickImages,
+              onRemove: _isSubmitting ? null : _removeSelectedImage,
+              onClear: _isSubmitting ? null : _clearSelectedImages,
+            ),
+            if (_formError != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _FormFeedbackPanel(message: _formError!, isError: true),
+            ],
+            if (_lastResult != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _RegistrationResultPanel(result: _lastResult!),
+            ],
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              onPressed: _canSubmit ? _registerMember : null,
+              icon: _isSubmitting
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(_isSubmitting ? 'Registering...' : 'Register'),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-class _InlineErrorPanel extends StatelessWidget {
-  const _InlineErrorPanel({
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFFCA5A5)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFFB91C1C),
-                    ),
-              ),
-            ),
-            IconButton(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Retry',
-            ),
-          ],
+    return AppPage(
+      maxWidth: AppLayout.formMaxWidth,
+      alignment: Alignment.topCenter,
+      children: [
+        const HeaderBlock(
+          title: 'Register',
+          subtitle: 'Add known people using clear face images.',
+          icon: Icons.person_add_alt_1,
         ),
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        formCard,
+      ],
     );
   }
 }
@@ -434,12 +244,12 @@ class _RegistrationResultPanel extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.surfaceSubtle,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -449,13 +259,13 @@ class _RegistrationResultPanel extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _ResultCountRow(
               acceptedCount: result.acceptedImages.length,
               rejectedCount: result.rejectedImages.length,
             ),
             if (result.rejectedImages.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpacing.md),
               ...result.rejectedImages.map(
                 (image) => _RejectedImageReason(image: image),
               ),
@@ -479,16 +289,20 @@ class _ResultCountRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
-        Chip(
-          avatar: const Icon(Icons.check_circle_outline, size: 18),
-          label: Text('$acceptedCount accepted'),
+        StatusBadge(
+          icon: Icons.check_circle_outline,
+          label: '$acceptedCount accepted',
+          tone: StatusBadgeTone.success,
         ),
-        Chip(
-          avatar: const Icon(Icons.error_outline, size: 18),
-          label: Text('$rejectedCount rejected'),
+        StatusBadge(
+          icon: Icons.error_outline,
+          label: '$rejectedCount rejected',
+          tone: rejectedCount == 0
+              ? StatusBadgeTone.neutral
+              : StatusBadgeTone.warning,
         ),
       ],
     );
@@ -510,9 +324,9 @@ class _RejectedImageReason extends StatelessWidget {
           const Icon(
             Icons.warning_amber_outlined,
             size: 18,
-            color: Color(0xFFB45309),
+            color: AppColors.warning,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               '${image.filename}: ${image.reason}',
@@ -525,98 +339,320 @@ class _RejectedImageReason extends StatelessWidget {
   }
 }
 
-class _ImageSelectionSummary extends StatelessWidget {
-  const _ImageSelectionSummary({
+class _FormFeedbackPanel extends StatelessWidget {
+  const _FormFeedbackPanel({required this.message, required this.isError});
+
+  final String message;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isError ? AppColors.danger : AppColors.success;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        border: Border.all(color: color.withAlpha(72)),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: color,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePickerPanel extends StatelessWidget {
+  const _ImagePickerPanel({
     required this.images,
+    required this.submitting,
+    required this.onPick,
     required this.onRemove,
     required this.onClear,
   });
 
   final List<PlatformFile> images;
+  final bool submitting;
+  final VoidCallback onPick;
   final ValueChanged<int>? onRemove;
   final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    if (images.isEmpty) {
-      return Text(
-        'No images selected',
-        style: textTheme.bodyMedium?.copyWith(
-          color: const Color(0xFF6B7280),
-        ),
-      );
-    }
+    final totalBytes = images.fold<int>(0, (sum, image) => sum + image.size);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          '${images.length} image(s) selected',
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSubtle,
+        border: Border.all(
+          color: images.isEmpty ? AppColors.borderStrong : AppColors.tealMuted,
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: images.take(8).toList().asMap().entries.map((entry) {
-            final index = entry.key;
-            final image = entry.value;
-            return Chip(
-              avatar: const Icon(Icons.image_outlined, size: 18),
-              label: Text(
-                image.name,
-                overflow: TextOverflow.ellipsis,
-              ),
-              deleteIcon: const Icon(Icons.close, size: 18),
-              onDeleted: onRemove == null ? null : () => onRemove!(index),
-            );
-          }).toList(),
-        ),
-        if (images.length > 8) ...[
-          const SizedBox(height: 8),
-          Text(
-            '+${images.length - 8} more',
-            style: textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF6B7280),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.tealSoft,
+                    borderRadius: BorderRadius.circular(AppRadii.sm),
+                  ),
+                  child: const Icon(
+                    Icons.add_photo_alternate_outlined,
+                    color: AppColors.teal,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Face images',
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Use clear JPG, PNG, or WebP images with one visible face per photo.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textMuted,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: onClear,
-            icon: const Icon(Icons.clear_all),
-            label: const Text('Clear selection'),
-          ),
+            const SizedBox(height: AppSpacing.lg),
+            OutlinedButton.icon(
+              onPressed: submitting ? null : onPick,
+              icon: const Icon(Icons.upload_file_outlined),
+              label: Text(
+                images.isEmpty ? 'Choose face images' : 'Replace images',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            if (images.isEmpty)
+              _NoImagesSelectedHint(disabled: submitting)
+            else ...[
+              Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  StatusBadge(
+                    icon: Icons.image_outlined,
+                    label:
+                        '${images.length} image${images.length == 1 ? '' : 's'} selected',
+                    tone: StatusBadgeTone.success,
+                  ),
+                  StatusBadge(
+                    icon: Icons.storage_outlined,
+                    label: _formatBytes(totalBytes),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final tileWidth =
+                      constraints.maxWidth >= AppBreakpoints.compact
+                      ? 142.0
+                      : 118.0;
+                  return Wrap(
+                    spacing: AppSpacing.md,
+                    runSpacing: AppSpacing.md,
+                    children: images.asMap().entries.map((entry) {
+                      return _SelectedImageTile(
+                        image: entry.value,
+                        width: tileWidth,
+                        onRemove: onRemove == null
+                            ? null
+                            : () => onRemove!(entry.key),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear selection'),
+                ),
+              ),
+            ],
+          ],
         ),
-      ],
+      ),
+    );
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    return '${(kb / 1024).toStringAsFixed(1)} MB';
+  }
+}
+
+class _NoImagesSelectedHint extends StatelessWidget {
+  const _NoImagesSelectedHint({required this.disabled});
+
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          children: [
+            Icon(
+              Icons.image_search_outlined,
+              color: disabled ? AppColors.textSubtle : AppColors.textMuted,
+              size: 36,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'No images selected',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Choose at least one face image before registering.',
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-String _initialsFor(String name) {
-  final parts = name.trim().split(RegExp(r'\s+'));
-  if (parts.isEmpty || parts.first.isEmpty) {
-    return '?';
-  }
-  if (parts.length == 1) {
-    return parts.first.characters.first.toUpperCase();
-  }
-  return '${parts.first.characters.first}${parts.last.characters.first}'
-      .toUpperCase();
-}
+class _SelectedImageTile extends StatelessWidget {
+  const _SelectedImageTile({
+    required this.image,
+    required this.width,
+    required this.onRemove,
+  });
 
-String _formatCreatedAt(String value) {
-  final parsed = DateTime.tryParse(value.replaceFirst(' ', 'T'));
-  if (parsed == null) {
-    return value;
+  final PlatformFile image;
+  final double width;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = image.bytes == null
+        ? Container(
+            color: AppColors.tealSoft,
+            child: const Icon(Icons.image_outlined, color: AppColors.teal),
+          )
+        : Image.memory(image.bytes!, fit: BoxFit.cover, gaplessPlayback: true);
+
+    return SizedBox(
+      width: width,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Stack(
+                children: [
+                  AspectRatio(aspectRatio: 1, child: preview),
+                  Positioned(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.xs,
+                    child: IconButton.filledTonal(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onRemove,
+                      icon: const Icon(Icons.close, size: 16),
+                      tooltip: 'Remove image',
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      image.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _formatBytes(image.size),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
-  final date = '${parsed.year.toString().padLeft(4, '0')}-'
-      '${parsed.month.toString().padLeft(2, '0')}-'
-      '${parsed.day.toString().padLeft(2, '0')}';
-  final time = '${parsed.hour.toString().padLeft(2, '0')}:'
-      '${parsed.minute.toString().padLeft(2, '0')}';
-  return '$date $time';
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    final kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    return '${(kb / 1024).toStringAsFixed(1)} MB';
+  }
 }

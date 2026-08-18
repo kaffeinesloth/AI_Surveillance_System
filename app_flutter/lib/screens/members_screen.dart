@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../core/timestamp_formatter.dart';
 import '../models/member_model.dart';
 import '../services/member_service.dart';
+import '../theme/app_tokens.dart';
+import '../widgets/app_message.dart';
 import '../widgets/app_page.dart';
 import '../widgets/empty_panel.dart';
+import '../widgets/header_block.dart';
+import '../widgets/section_header.dart';
+import '../widgets/status_badge.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({
     super.key,
     required this.refreshToken,
+    required this.onMembersChanged,
   });
 
   final int refreshToken;
+  final VoidCallback onMembersChanged;
 
   @override
   State<MembersScreen> createState() => _MembersScreenState();
@@ -19,13 +27,17 @@ class MembersScreen extends StatefulWidget {
 
 class _MembersScreenState extends State<MembersScreen> {
   final MemberService _memberService = const MemberService();
+  final TextEditingController _searchController = TextEditingController();
+  final Set<int> _deletingMemberIds = {};
 
   late Future<List<MemberModel>> _membersFuture;
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _membersFuture = _memberService.listMembers();
+    _searchController.addListener(_updateQuery);
   }
 
   @override
@@ -36,70 +48,105 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_updateQuery)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _updateQuery() {
+    final nextQuery = _searchController.text.trim().toLowerCase();
+    if (nextQuery == _query) return;
+    setState(() => _query = nextQuery);
+  }
+
   void _refreshMembers() {
-    setState(() => _membersFuture = _memberService.listMembers());
+    setState(() {
+      _membersFuture = _memberService.listMembers();
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+  }
+
+  List<MemberModel> _filterMembers(List<MemberModel> members) {
+    if (_query.isEmpty) return members;
+    return members.where((member) {
+      final registered = formatBackendTimestamp(member.createdAt).toLowerCase();
+      return member.name.toLowerCase().contains(_query) ||
+          member.imageCount.toString().contains(_query) ||
+          registered.contains(_query);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return AppPage(
+      maxWidth: AppLayout.dataMaxWidth,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Registered people',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ),
-            IconButton.filledTonal(
-              onPressed: _refreshMembers,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh',
-            ),
-          ],
+        HeaderBlock(
+          title: 'Members',
+          subtitle: 'Review registered people and manage saved face images.',
+          icon: Icons.people_alt,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.lg),
         FutureBuilder<List<MemberModel>>(
           future: _membersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const _MembersLoadingCard();
+              return const _MembersLoadingState();
             }
 
             if (snapshot.hasError) {
-              return _MembersErrorCard(
-                message: snapshot.error.toString().replaceFirst(
-                      'Exception: ',
-                      '',
-                    ),
+              return _MembersErrorState(
+                message: friendlyErrorMessage(
+                  snapshot.error ?? 'Unknown error',
+                ),
                 onRetry: _refreshMembers,
               );
             }
 
             final members = snapshot.data ?? const [];
-            if (members.isEmpty) {
-              return const EmptyPanel(
-                icon: Icons.people_outline,
-                title: 'No registered people',
-                message: 'Registered people will appear here after image registration.',
-              );
-            }
+            final visibleMembers = _filterMembers(members);
 
             return Column(
-              children: members
-                  .map(
-                    (member) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _MemberCard(
-                        member: member,
-                        onDelete: () => _deleteMember(member),
-                      ),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _MembersToolbar(
+                  searchController: _searchController,
+                  onClearSearch: _query.isEmpty ? null : _clearSearch,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                const SectionHeader(title: 'Registered people'),
+                if (members.isEmpty)
+                  const EmptyPanel(
+                    icon: Icons.people_outline,
+                    title: 'No registered people',
+                    message:
+                        'Registered people will appear here after image registration.',
+                  )
+                else if (visibleMembers.isEmpty)
+                  EmptyPanel(
+                    icon: Icons.search_off,
+                    title: 'No matching members',
+                    message:
+                        'No registered person matches the current search filter.',
+                    action: OutlinedButton.icon(
+                      onPressed: _clearSearch,
+                      icon: const Icon(Icons.clear),
+                      label: const Text('Clear search'),
                     ),
                   )
-                  .toList(),
+                else
+                  _MembersList(
+                    members: visibleMembers,
+                    deletingMemberIds: _deletingMemberIds,
+                    onDelete: _deleteMember,
+                  ),
+              ],
             );
           },
         ),
@@ -112,16 +159,24 @@ class _MembersScreenState extends State<MembersScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Delete member'),
-          content: Text('Delete ${member.name} and saved registration files?'),
+          icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+          title: Text('Delete ${member.name}?'),
+          content: Text(
+            'This removes ${member.name} and ${member.imageCount} saved face image(s) from the recognition database.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel'),
             ),
-            FilledButton(
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.danger,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Delete member'),
             ),
           ],
         );
@@ -132,32 +187,99 @@ class _MembersScreenState extends State<MembersScreen> {
       return;
     }
 
+    setState(() => _deletingMemberIds.add(member.id));
     try {
       await _memberService.deleteMember(member.id);
       if (!mounted) return;
       _refreshMembers();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Deleted ${member.name}.')),
+      widget.onMembersChanged();
+      showAppSnackBar(
+        context,
+        message: 'Deleted ${member.name}.',
+        tone: AppMessageTone.success,
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: const Color(0xFFB91C1C),
-        ),
+      showAppSnackBar(
+        context,
+        message: friendlyErrorMessage(error),
+        tone: toneForError(error),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _deletingMemberIds.remove(member.id));
+      }
     }
+  }
+}
+
+class _MembersToolbar extends StatelessWidget {
+  const _MembersToolbar({
+    required this.searchController,
+    required this.onClearSearch,
+  });
+
+  final TextEditingController searchController;
+  final VoidCallback? onClearSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: searchController,
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.search),
+        labelText: 'Search members',
+        suffixIcon: onClearSearch == null
+            ? null
+            : IconButton(
+                onPressed: onClearSearch,
+                icon: const Icon(Icons.close),
+                tooltip: 'Clear search',
+              ),
+      ),
+    );
+  }
+}
+
+class _MembersList extends StatelessWidget {
+  const _MembersList({
+    required this.members,
+    required this.deletingMemberIds,
+    required this.onDelete,
+  });
+
+  final List<MemberModel> members;
+  final Set<int> deletingMemberIds;
+  final ValueChanged<MemberModel> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: members
+          .map(
+            (member) => Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _MemberCard(
+                member: member,
+                deleting: deletingMemberIds.contains(member.id),
+                onDelete: () => onDelete(member),
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 }
 
 class _MemberCard extends StatelessWidget {
   const _MemberCard({
     required this.member,
+    required this.deleting,
     required this.onDelete,
   });
 
   final MemberModel member;
+  final bool deleting;
   final VoidCallback onDelete;
 
   @override
@@ -165,46 +287,106 @@ class _MemberCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFFE0F2F1),
-              foregroundColor: const Color(0xFF0F766E),
-              child: Text(_initialsFor(member.name)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final identity = Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppColors.tealSoft,
+                  foregroundColor: AppColors.teal,
+                  child: Text(
+                    _initialsFor(member.name),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        member.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Registered ${formatBackendTimestamp(member.createdAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+            final metadata = Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                StatusBadge(
+                  icon: Icons.image_outlined,
+                  label:
+                      '${member.imageCount} image${member.imageCount == 1 ? '' : 's'}',
+                ),
+                StatusBadge(
+                  icon: Icons.calendar_today_outlined,
+                  label: formatBackendTimestamp(
+                    member.createdAt,
+                    style: TimestampDisplayStyle.dateOnly,
+                    fallback: 'Unknown date',
+                  ),
+                ),
+              ],
+            );
+            final deleteButton = deleting
+                ? const SizedBox.square(
+                    dimension: 40,
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.sm),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline),
+                    color: AppColors.danger,
+                    tooltip: 'Delete member',
+                  );
+
+            if (constraints.maxWidth < AppBreakpoints.compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    member.name,
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Registered ${_formatCreatedAt(member.createdAt)}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF6B7280),
-                    ),
-                  ),
+                  identity,
+                  const SizedBox(height: AppSpacing.md),
+                  metadata,
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(alignment: Alignment.centerRight, child: deleteButton),
                 ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Chip(
-              avatar: const Icon(Icons.image_outlined, size: 18),
-              label: Text('${member.imageCount} image(s)'),
-            ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
-            ),
-          ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(flex: 5, child: identity),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(flex: 4, child: metadata),
+                const SizedBox(width: AppSpacing.md),
+                deleteButton,
+              ],
+            );
+          },
         ),
       ),
     );
@@ -221,69 +403,79 @@ class _MemberCard extends StatelessWidget {
     return '${parts.first.characters.first}${parts.last.characters.first}'
         .toUpperCase();
   }
-
-  static String _formatCreatedAt(String value) {
-    final parsed = DateTime.tryParse(value.replaceFirst(' ', 'T'));
-    if (parsed == null) {
-      return value;
-    }
-    final date = '${parsed.year.toString().padLeft(4, '0')}-'
-        '${parsed.month.toString().padLeft(2, '0')}-'
-        '${parsed.day.toString().padLeft(2, '0')}';
-    final time = '${parsed.hour.toString().padLeft(2, '0')}:'
-        '${parsed.minute.toString().padLeft(2, '0')}';
-    return '$date $time';
-  }
 }
 
-class _MembersLoadingCard extends StatelessWidget {
-  const _MembersLoadingCard();
+class _MembersLoadingState extends StatelessWidget {
+  const _MembersLoadingState();
 
   @override
   Widget build(BuildContext context) {
-    return const Card(
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Center(child: CircularProgressIndicator()),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SectionHeader(
+              title: 'Loading members',
+              subtitle: 'Fetching registered people from the backend.',
+            ),
+            const LinearProgressIndicator(),
+            const SizedBox(height: AppSpacing.lg),
+            ...List.generate(
+              3,
+              (index) => const Padding(
+                padding: EdgeInsets.only(bottom: AppSpacing.md),
+                child: _LoadingMemberRow(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _MembersErrorCard extends StatelessWidget {
-  const _MembersErrorCard({
-    required this.message,
-    required this.onRetry,
-  });
+class _LoadingMemberRow extends StatelessWidget {
+  const _LoadingMemberRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: AppColors.tealSoft),
+            SizedBox(width: AppSpacing.md),
+            Expanded(child: LinearProgressIndicator()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MembersErrorState extends StatelessWidget {
+  const _MembersErrorState({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFFB91C1C),
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ),
-          ],
-        ),
+    return EmptyPanel(
+      icon: Icons.error_outline,
+      title: 'Could not load members',
+      message: friendlyErrorMessage(message),
+      action: FilledButton.icon(
+        onPressed: onRetry,
+        icon: const Icon(Icons.refresh),
+        label: const Text('Retry'),
       ),
     );
   }

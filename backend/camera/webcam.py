@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+import platform
 
 import cv2
 
@@ -22,6 +23,32 @@ def resolve_camera_source(source: str) -> int | str:
     return int(clean_source) if clean_source.isdigit() else clean_source
 
 
+def open_camera_capture(
+    source: int | str,
+    *,
+    capture_factory: Callable = cv2.VideoCapture,
+):
+    capture = capture_factory(source)
+    if capture.isOpened() or not _should_try_avfoundation(source):
+        return capture
+
+    try:
+        avfoundation_capture = capture_factory(source, cv2.CAP_AVFOUNDATION)
+    except TypeError:
+        return capture
+
+    if avfoundation_capture.isOpened():
+        capture.release()
+        return avfoundation_capture
+
+    avfoundation_capture.release()
+    return capture
+
+
+def _should_try_avfoundation(source: int | str) -> bool:
+    return isinstance(source, int) and platform.system() == "Darwin"
+
+
 class CameraCaptureService:
     def __init__(
         self,
@@ -36,7 +63,10 @@ class CameraCaptureService:
 
     def capture_snapshot(self, source: str) -> CameraSnapshot:
         resolved_source = resolve_camera_source(source)
-        capture = self.capture_factory(resolved_source)
+        capture = open_camera_capture(
+            resolved_source,
+            capture_factory=self.capture_factory,
+        )
         try:
             if not capture.isOpened():
                 raise CameraUnavailableError(

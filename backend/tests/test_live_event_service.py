@@ -11,6 +11,7 @@ from backend.ai.contracts import (
 from backend.app.database import create_schema
 from backend.app.models import DetectionStatus
 from backend.services.live_event_service import LiveEventRecorder
+from backend.services.zone_service import RestrictedZone, ZonePoint
 
 
 def make_connection() -> sqlite3.Connection:
@@ -27,10 +28,11 @@ def make_track(
     status=DetectionStatus.UNKNOWN,
     member_id=None,
     similarity=0.20,
+    bounding_box=BoundingBox(1, 1, 10, 12),
 ):
     return TrackAnalysis(
         track_id=track_id,
-        bounding_box=BoundingBox(1, 1, 10, 12),
+        bounding_box=bounding_box,
         person_confidence=0.9,
         status=status,
         member_id=member_id,
@@ -115,7 +117,7 @@ class LiveEventRecorderTestCase(unittest.TestCase):
         self.assertIsNone(row["snapshot_path"])
         self.assertEqual(list(self.snapshots_dir.iterdir()), [])
 
-    def test_unknown_requires_confirmation_and_obeys_cooldown(self):
+    def test_unknown_requires_confirmation_and_alerts_once_per_visible_track(self):
         recorder = self.recorder(confirmation=3, cooldown=10)
         unknown = make_track()
 
@@ -135,16 +137,28 @@ class LiveEventRecorderTestCase(unittest.TestCase):
             make_analysis(3, 5.0, unknown),
             b"jpeg-3",
         )
-        second = recorder.process(
+        repeated_after_cooldown = recorder.process(
             make_analysis(4, 12.0, unknown),
             b"jpeg-4",
         )
 
         self.assertEqual(len(first), 1)
         self.assertEqual(within_cooldown, [])
+        self.assertEqual(repeated_after_cooldown, [])
+        self.assertEqual(self.counts(), (1, 1))
+        self.assertEqual(len(list(self.snapshots_dir.glob("*.jpg"))), 1)
+
+    def test_unknown_track_can_alert_again_after_it_disappears(self):
+        recorder = self.recorder(confirmation=1, cooldown=3)
+        unknown = make_track()
+
+        first = recorder.process(make_analysis(0, 0.0, unknown), b"jpeg-0")
+        recorder.process(make_analysis(1, 1.0), b"jpeg-1")
+        second = recorder.process(make_analysis(2, 4.0, unknown), b"jpeg-2")
+
+        self.assertEqual(len(first), 1)
         self.assertEqual(len(second), 1)
         self.assertEqual(self.counts(), (2, 2))
-        self.assertEqual(len(list(self.snapshots_dir.glob("*.jpg"))), 2)
 
     def test_low_quality_frame_does_not_increment_unknown_streak(self):
         recorder = self.recorder(confirmation=3)
@@ -200,6 +214,236 @@ class LiveEventRecorderTestCase(unittest.TestCase):
 
         self.assertEqual(list(self.snapshots_dir.iterdir()), [])
         self.assertEqual(self.counts(), (0, 0))
+
+    def test_unknown_lingering_in_restricted_zone_creates_alert(self):
+        zone = RestrictedZone(
+            id=7,
+            camera_id=self.camera_id,
+            name="Storage",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[zone],
+            restricted_zone_dwell_seconds=3,
+        )
+        inside = make_track()
+
+        first = recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        second = recorder.process(make_analysis(1, 2.0, inside), b"jpeg-1")
+        third = recorder.process(make_analysis(2, 3.0, inside), b"jpeg-2")
+        repeated = recorder.process(make_analysis(3, 6.0, inside), b"jpeg-3")
+
+        self.assertEqual(
+            [event.alert_type.value for event in first],
+            ["unknown_person"],
+        )
+        self.assertEqual(second, [])
+        self.assertEqual(
+            [event.alert_type.value for event in third],
+            ["restricted_area"],
+        )
+        self.assertEqual(repeated, [])
+        rows = self.connection.execute(
+            "SELECT alert_type, message FROM alerts ORDER BY id"
+        ).fetchall()
+        self.assertEqual(
+            [row["alert_type"] for row in rows],
+            ["unknown_person", "restricted_area"],
+        )
+        self.assertEqual(
+            rows[1]["message"],
+            "Unknown person entered Storage",
+        )
+
+    def test_restricted_zone_dwell_resets_after_unknown_leaves_zone(self):
+        zone = RestrictedZone(
+            id=8,
+            camera_id=self.camera_id,
+            name="Door",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[zone],
+            restricted_zone_dwell_seconds=3,
+        )
+        inside = make_track()
+        outside = make_track(bounding_box=BoundingBox(30, 30, 40, 42))
+
+        recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        recorder.process(make_analysis(1, 2.0, outside), b"jpeg-1")
+        recorder.process(make_analysis(2, 4.0, inside), b"jpeg-2")
+        still_not_due = recorder.process(
+            make_analysis(3, 6.0, inside),
+            b"jpeg-3",
+        )
+
+        self.assertEqual(still_not_due, [])
+        rows = self.connection.execute(
+            "SELECT alert_type FROM alerts ORDER BY id"
+        ).fetchall()
+        self.assertEqual([row["alert_type"] for row in rows], ["unknown_person"])
+
+    def test_restricted_zone_uses_box_overlap_not_only_bottom_point(self):
+        zone = RestrictedZone(
+            id=9,
+            camera_id=self.camera_id,
+            name="Upper Body Zone",
+            points=(
+                ZonePoint(2, 2),
+                ZonePoint(18, 2),
+                ZonePoint(18, 10),
+                ZonePoint(2, 10),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[zone],
+            restricted_zone_dwell_seconds=2,
+        )
+        overlapping = make_track(
+            bounding_box=BoundingBox(6, 6, 14, 15),
+        )
+
+        recorder.process(make_analysis(0, 0.0, overlapping), b"jpeg-0")
+        events = recorder.process(make_analysis(1, 2.0, overlapping), b"jpeg-1")
+
+        self.assertEqual(
+            [event.alert_type.value for event in events],
+            ["restricted_area"],
+        )
+
+    def test_multiple_restricted_zones_create_separate_log_rows(self):
+        first_zone = RestrictedZone(
+            id=10,
+            camera_id=self.camera_id,
+            name="Backdoor",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        second_zone = RestrictedZone(
+            id=11,
+            camera_id=self.camera_id,
+            name="Brush Door",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[first_zone, second_zone],
+            restricted_zone_dwell_seconds=1,
+        )
+        inside = make_track()
+
+        recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        events = recorder.process(make_analysis(1, 1.0, inside), b"jpeg-1")
+
+        self.assertEqual(
+            [event.alert_type.value for event in events],
+            ["restricted_area", "restricted_area"],
+        )
+        rows = self.connection.execute(
+            """
+            SELECT alert_type, message, detection_log_id
+            FROM alerts
+            ORDER BY id
+            """
+        ).fetchall()
+        restricted_rows = [
+            row for row in rows if row["alert_type"] == "restricted_area"
+        ]
+        self.assertEqual(
+            [row["message"] for row in restricted_rows],
+            [
+                "Unknown person entered Backdoor",
+                "Unknown person entered Brush Door",
+            ],
+        )
+        self.assertEqual(
+            len({row["detection_log_id"] for row in restricted_rows}),
+            2,
+        )
+        self.assertEqual(self.counts(), (3, 3))
+
+    def test_restricted_zone_dwell_resets_after_unknown_disappears(self):
+        zone = RestrictedZone(
+            id=12,
+            camera_id=self.camera_id,
+            name="Door",
+            points=(
+                ZonePoint(0, 0),
+                ZonePoint(12, 0),
+                ZonePoint(12, 14),
+                ZonePoint(0, 14),
+            ),
+        )
+        recorder = LiveEventRecorder(
+            self.connection,
+            session_id=self.session_id,
+            camera_id=self.camera_id,
+            snapshots_dir=self.snapshots_dir,
+            unknown_confirmation_frames=1,
+            restricted_zones=[zone],
+            restricted_zone_dwell_seconds=1,
+        )
+        inside = make_track()
+
+        recorder.process(make_analysis(0, 0.0, inside), b"jpeg-0")
+        first_entry = recorder.process(make_analysis(1, 1.0, inside), b"jpeg-1")
+        recorder.process(make_analysis(2, 2.0), b"jpeg-2")
+        not_due_after_return = recorder.process(
+            make_analysis(3, 3.0, inside),
+            b"jpeg-3",
+        )
+        second_entry = recorder.process(
+            make_analysis(4, 4.0, inside),
+            b"jpeg-4",
+        )
+
+        self.assertEqual(
+            [event.alert_type.value for event in first_entry],
+            ["restricted_area"],
+        )
+        self.assertEqual(not_due_after_return, [])
+        self.assertEqual(
+            [event.alert_type.value for event in second_entry],
+            ["restricted_area"],
+        )
 
 
 if __name__ == "__main__":
